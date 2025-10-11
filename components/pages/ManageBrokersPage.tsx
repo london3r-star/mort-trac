@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { User, Role, Application, STATUS_DISPLAY_NAMES } from '../../types';
+import { createBroker, updateUser } from '../../services/userService';
 import BrokerModal from '../ui/BrokerModal';
 import ConfirmModal from '../ui/ConfirmModal';
 
 interface ManageBrokersPageProps {
   user: User;
   users: User[];
-  setUsers: (users: User[]) => void;
+  setUsers: () => Promise<void>;
   onViewBrokerDashboard: (broker: User) => void;
   applications: Application[];
 }
@@ -31,33 +32,40 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     setIsModalOpen(true);
   };
 
-  const handleSaveBroker = (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
-    if (brokerData.id) { // Editing
-        setUsers(users.map(u => 
-            u.id === brokerData.id 
-            ? { ...u, name: brokerData.name, contactNumber: brokerData.contactNumber, companyName: brokerData.companyName, isTeamManager: brokerData.isTeamManager, isBrokerAdmin: brokerData.isBrokerAdmin } 
-            : u
-        ));
-    } else { // Creating
-        const newBroker: User = {
-            id: `broker-${new Date().getTime()}`,
-            name: brokerData.name,
-            email: brokerData.email,
-            contactNumber: brokerData.contactNumber,
-            companyName: brokerData.companyName,
-            role: Role.BROKER,
-            isTeamManager: brokerData.isTeamManager,
-            isBrokerAdmin: brokerData.isBrokerAdmin,
-        };
-        setUsers([...users, newBroker]);
+  const handleSaveBroker = async (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
+    if (brokerData.id) {
+      await updateUser(brokerData.id, {
+        name: brokerData.name,
+        contactNumber: brokerData.contactNumber,
+        companyName: brokerData.companyName,
+        isTeamManager: brokerData.isTeamManager,
+        isBrokerAdmin: brokerData.isBrokerAdmin,
+      });
+      await setUsers();
+    } else {
+      const newBroker = await createBroker({
+        name: brokerData.name,
+        email: brokerData.email,
+        contactNumber: brokerData.contactNumber,
+        companyName: brokerData.companyName,
+        role: Role.BROKER,
+        isTeamManager: brokerData.isTeamManager,
+        isBrokerAdmin: brokerData.isBrokerAdmin,
+      });
+
+      if (!newBroker) {
+        alert('Failed to create broker. Please try again.');
+        return;
+      }
+
+      await setUsers();
     }
     setIsModalOpen(false);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingBroker) return;
-    const updatedUsers = users.filter(u => u.id !== deletingBroker.id);
-    setUsers(updatedUsers);
+    alert('Deleting brokers is not supported in this version. Please contact your administrator.');
     setDeletingBroker(null);
   };
 

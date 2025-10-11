@@ -1,47 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/pages/LoginPage';
 import DashboardPage from './components/pages/DashboardPage';
-import { User, Application } from './types';
-import { MOCK_USERS, MOCK_APPLICATIONS } from './services/mockData';
-import { Role } from './types';
+import ResetPasswordPage from './components/pages/ResetPasswordPage';
 
-const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [applications, setApplications] = useState<Application[]>(MOCK_APPLICATIONS);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+const AppContent: React.FC = () => {
+  const { user, loading } = useAuth();
+  const [isResetPassword, setIsResetPassword] = React.useState(false);
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-  };
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setIsResetPassword(true);
+    }
+  }, []);
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-  };
-
-  const handleUpdateApplications = (updatedApplications: Application[]) => {
-    setApplications(updatedApplications);
-  };
-
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} users={users} setUsers={setUsers} />;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-brand-primary">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
   }
 
-  const clientApplication = currentUser.role === Role.CLIENT 
-    ? applications.find(app => app.clientId === currentUser.id) || null
-    : null;
+  if (isResetPassword) {
+    return <ResetPasswordPage />;
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="min-h-screen">
-      <DashboardPage
-        user={currentUser}
-        users={users}
-        setUsers={setUsers}
-        applications={applications}
-        clientApplication={clientApplication}
-        onLogout={handleLogout}
-        onUpdateApplications={handleUpdateApplications}
-      />
+      <DashboardPage user={user} />
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { User, Application, ApplicationStatus, Role, STATUS_ORDER, STATUS_DISPLAY_NAMES } from '../../types';
+import { createApplication, updateApplication, deleteApplication } from '../../services/applicationService';
+import { createBroker } from '../../services/userService';
 import ApplicationModal from '../ui/ApplicationModal';
 import ConfirmModal from '../ui/ConfirmModal';
 import HistoryModal from '../ui/HistoryModal';
@@ -11,9 +13,9 @@ interface BrokerDashboardProps {
   user: User; // The logged-in user
   viewedBroker?: User; // The broker whose dashboard is being viewed (for admins)
   applications: Application[];
-  onUpdateApplications: (updatedApplications: Application[]) => void;
+  onUpdateApplications: () => Promise<void>;
   users: User[];
-  setUsers: (users: User[]) => void;
+  setUsers: () => Promise<void>;
 }
 
 type SortableKeys = 'clientName' | 'mortgageLender' | 'loanAmount' | 'interestRateExpiryDate' | 'status' | 'solicitor.firmName';
@@ -159,93 +161,67 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     setEditingApplication(null);
   };
 
-  const handleSaveApplication = (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
-    if (appData.id) { // Editing existing application
-      const updatedApplications = applications.map(app =>
-        app.id === appData.id ? { ...app, ...appData } : app
-      );
-      onUpdateApplications(updatedApplications);
-    } else { // Creating new application
+  const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
+    if (appData.id) {
+      await updateApplication(appData.id, appData);
+      await onUpdateApplications();
+    } else {
       const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
       let clientId: string;
-      
+
       if (!clientUser) {
-        // Create a new client user if they don't exist
-        const newClient: User = {
-          id: `user-${new Date().getTime()}`,
+        const newClient = await createBroker({
           name: appData.clientName,
           email: appData.clientEmail,
           role: Role.CLIENT,
           contactNumber: appData.clientContactNumber,
           currentAddress: appData.clientCurrentAddress,
-        };
-        setUsers([...users, newClient]);
+        });
+
+        if (!newClient) {
+          alert('Failed to create client. Please try again.');
+          return;
+        }
+
         clientId = newClient.id;
+        await setUsers();
       } else {
         clientId = clientUser.id;
       }
 
-      const newApplication: Application = {
+      const newApp: Omit<Application, 'id' | 'history'> = {
         ...appData,
-        id: `app-${new Date().getTime()}`,
         clientId: clientId,
-        brokerId: displayUser.id, // Assign to the broker being viewed, or self if not viewing
-        history: [{ status: appData.status, date: new Date().toISOString() }],
+        brokerId: displayUser.id,
         notes: appData.notes || '',
       };
-      onUpdateApplications([...applications, newApplication]);
+
+      await createApplication(newApp);
+      await onUpdateApplications();
     }
     handleCloseModal();
   };
 
-  const handleUpdateStatus = (appId: string, newStatus: ApplicationStatus) => {
-    const updatedApplications = applications.map(app => {
-      if (app.id === appId && app.status !== newStatus) {
-        return {
-          ...app,
-          status: newStatus,
-          history: [...app.history, { status: newStatus, date: new Date().toISOString() }],
-        };
-      }
-      return app;
-    });
-    onUpdateApplications(updatedApplications);
+  const handleUpdateStatus = async (appId: string, newStatus: ApplicationStatus) => {
+    await updateApplication(appId, { status: newStatus });
+    await onUpdateApplications();
   };
 
-  const handleDeleteApplication = () => {
+  const handleDeleteApplication = async () => {
     if (deletingApplicationId) {
-      const updatedApplications = applications.filter(app => app.id !== deletingApplicationId);
-      onUpdateApplications(updatedApplications);
+      await deleteApplication(deletingApplicationId);
+      await onUpdateApplications();
       setDeletingApplicationId(null);
     }
   };
 
-  const handleSaveNotes = (appId: string, newNotes: string) => {
-    const updatedApplications = applications.map(app => 
-      app.id === appId ? { ...app, notes: newNotes } : app
-    );
-    onUpdateApplications(updatedApplications);
+  const handleSaveNotes = async (appId: string, newNotes: string) => {
+    await updateApplication(appId, { notes: newNotes });
+    await onUpdateApplications();
     setNotesModalApp(null);
   };
   
-  const handleSendEmail = (app: Application) => {
-    const updatedApplications = applications.map(currentApp => {
-      if (currentApp.id === app.id) {
-        return {
-          ...currentApp,
-          history: [
-            ...currentApp.history,
-            {
-              status: ApplicationStatus.RATE_EXPIRY_REMINDER_SENT,
-              date: new Date().toISOString(),
-            },
-          ],
-        };
-      }
-      return currentApp;
-    });
-    onUpdateApplications(updatedApplications);
-    
+  const handleSendEmail = async (app: Application) => {
     alert(`An expiry notification has been sent to ${app.clientName}.`);
     setEmailedClients(prev => new Set(prev).add(app.id));
     setEmailModalApp(null);
