@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { User, Role, Application, STATUS_DISPLAY_NAMES } from '../../types';
-import { createBroker, updateUser } from '../../services/userService';
 import BrokerModal from '../ui/BrokerModal';
 import ConfirmModal from '../ui/ConfirmModal';
 
 interface ManageBrokersPageProps {
   user: User;
   users: User[];
-  setUsers: () => Promise<void>;
+  setUsers: (users: User[]) => void;
   onViewBrokerDashboard: (broker: User) => void;
   applications: Application[];
 }
@@ -32,40 +31,33 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     setIsModalOpen(true);
   };
 
-  const handleSaveBroker = async (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
-    if (brokerData.id) {
-      await updateUser(brokerData.id, {
-        name: brokerData.name,
-        contactNumber: brokerData.contactNumber,
-        companyName: brokerData.companyName,
-        isTeamManager: brokerData.isTeamManager,
-        isBrokerAdmin: brokerData.isBrokerAdmin,
-      });
-      await setUsers();
-    } else {
-      const newBroker = await createBroker({
-        name: brokerData.name,
-        email: brokerData.email,
-        contactNumber: brokerData.contactNumber,
-        companyName: brokerData.companyName,
-        role: Role.BROKER,
-        isTeamManager: brokerData.isTeamManager,
-        isBrokerAdmin: brokerData.isBrokerAdmin,
-      });
-
-      if (!newBroker) {
-        alert('Failed to create broker. Please try again.');
-        return;
-      }
-
-      await setUsers();
+  const handleSaveBroker = (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
+    if (brokerData.id) { // Editing
+        setUsers(users.map(u => 
+            u.id === brokerData.id 
+            ? { ...u, name: brokerData.name, contactNumber: brokerData.contactNumber, companyName: brokerData.companyName, isTeamManager: brokerData.isTeamManager, isBrokerAdmin: brokerData.isBrokerAdmin } 
+            : u
+        ));
+    } else { // Creating
+        const newBroker: User = {
+            id: `broker-${new Date().getTime()}`,
+            name: brokerData.name,
+            email: brokerData.email,
+            contactNumber: brokerData.contactNumber,
+            companyName: brokerData.companyName,
+            role: Role.BROKER,
+            isTeamManager: brokerData.isTeamManager,
+            isBrokerAdmin: brokerData.isBrokerAdmin,
+        };
+        setUsers([...users, newBroker]);
     }
     setIsModalOpen(false);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!deletingBroker) return;
-    alert('Deleting brokers is not supported in this version. Please contact your administrator.');
+    const updatedUsers = users.filter(u => u.id !== deletingBroker.id);
+    setUsers(updatedUsers);
     setDeletingBroker(null);
   };
 
@@ -137,14 +129,14 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
   return (
     <div className="container mx-auto py-8">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-brand-dark">Manage Brokers</h1>
+        <h1 className="text-3xl font-bold text-brand-dark dark:text-gray-100">Manage Brokers</h1>
         <div className="w-full md:w-auto flex flex-col md:flex-row gap-4 items-center">
              <input
                 type="text"
                 placeholder="Search by name, status, etc..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+                className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
             />
             {!user.isBrokerAdmin && (
               <button
@@ -157,71 +149,71 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th scope="col" onClick={() => requestSort('name')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+              <th scope="col" onClick={() => requestSort('name')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                 Name{getSortIndicator('name')}
               </th>
-              <th scope="col" onClick={() => requestSort('email')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+              <th scope="col" onClick={() => requestSort('email')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                 Email{getSortIndicator('email')}
               </th>
-               <th scope="col" onClick={() => requestSort('contactNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+               <th scope="col" onClick={() => requestSort('contactNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                 Contact Number{getSortIndicator('contactNumber')}
               </th>
-              <th scope="col" onClick={() => requestSort('companyName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+              <th scope="col" onClick={() => requestSort('companyName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                 Company Name{getSortIndicator('companyName')}
               </th>
-              <th scope="col" onClick={() => requestSort('isTeamManager')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+              <th scope="col" onClick={() => requestSort('isTeamManager')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                 Team Manager{getSortIndicator('isTeamManager')}
               </th>
-              <th scope="col" onClick={() => requestSort('isBrokerAdmin')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+              <th scope="col" onClick={() => requestSort('isBrokerAdmin')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                 Broker Admin{getSortIndicator('isBrokerAdmin')}
               </th>
               {user.isAdmin && (
-                <th scope="col" onClick={() => requestSort('isAdmin')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                <th scope="col" onClick={() => requestSort('isAdmin')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none">
                   Admin{getSortIndicator('isAdmin')}
                 </th>
               )}
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {filteredAndSortedBrokers.length > 0 ? (
               filteredAndSortedBrokers.map(broker => (
                 <tr key={broker.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                     <button
                         onClick={() => onViewBrokerDashboard(broker)}
-                        className="text-brand-secondary hover:underline"
+                        className="text-brand-secondary dark:text-blue-400 hover:underline"
                     >
                         {broker.name}
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{broker.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{broker.contactNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{broker.companyName}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{broker.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{broker.contactNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{broker.companyName}</td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {broker.isTeamManager ? 
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
                         Yes
                       </span> 
                       : 
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                         No
                       </span>
                     }
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {broker.isBrokerAdmin ? 
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-cyan-100 text-cyan-800">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300">
                         Yes
                       </span> 
                       : 
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                         No
                       </span>
                     }
@@ -229,11 +221,11 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                   {user.isAdmin && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {broker.isAdmin ? 
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
                           Yes
                         </span> 
                         : 
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                           No
                         </span>
                       }
@@ -242,7 +234,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button 
                       onClick={() => handleOpenEditModal(broker)} 
-                      className="text-blue-600 hover:text-blue-900 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
                       disabled={
                         (!user.isAdmin && (broker.isAdmin || broker.id === user.id)) ||
                         (user.isBrokerAdmin && broker.isTeamManager)
@@ -252,7 +244,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                     </button>
                     <button
                       onClick={() => setDeletingBroker(broker)}
-                      className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:text-gray-400 disabled:cursor-not-allowed"
                       disabled={broker.id === user.id || (user.isTeamManager && broker.isAdmin) || user.isBrokerAdmin}
                     >
                       Remove
@@ -262,7 +254,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
               ))
             ) : (
               <tr>
-                <td colSpan={user.isAdmin ? 8 : 7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={user.isAdmin ? 8 : 7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   No brokers found.
                 </td>
               </tr>

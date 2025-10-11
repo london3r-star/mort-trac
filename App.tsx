@@ -1,48 +1,62 @@
-import React, { useEffect } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
 import LoginPage from './components/pages/LoginPage';
 import DashboardPage from './components/pages/DashboardPage';
-import ResetPasswordPage from './components/pages/ResetPasswordPage';
+import { User, Application } from './types';
+import { MOCK_USERS, MOCK_APPLICATIONS } from './services/mockData';
+import { Role } from './types';
 
-const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
-  const [isResetPassword, setIsResetPassword] = React.useState(false);
+const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [applications, setApplications] = useState<Application[]>(MOCK_APPLICATIONS);
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      setIsResetPassword(true);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
-  }, []);
+  }, [theme]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-brand-primary">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
+
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
+  const handleUpdateApplications = (updatedApplications: Application[]) => {
+    setApplications(updatedApplications);
+  };
+
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLogin} users={users} setUsers={setUsers} />;
   }
 
-  if (isResetPassword) {
-    return <ResetPasswordPage />;
-  }
-
-  if (!user) {
-    return <LoginPage />;
-  }
+  const clientApplication = currentUser.role === Role.CLIENT 
+    ? applications.find(app => app.clientId === currentUser.id) || null
+    : null;
 
   return (
     <div className="min-h-screen">
-      <DashboardPage user={user} />
+      <DashboardPage
+        user={currentUser}
+        users={users}
+        setUsers={setUsers}
+        applications={applications}
+        clientApplication={clientApplication}
+        onLogout={handleLogout}
+        onUpdateApplications={handleUpdateApplications}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
     </div>
-  );
-};
-
-const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 };
 

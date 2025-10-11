@@ -51,17 +51,17 @@ ${broker.contactNumber || ''}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-full flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-full flex flex-col">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-brand-primary mb-1">
+          <h2 className="text-2xl font-bold text-brand-primary dark:text-gray-100 mb-1">
             Email Client: {application.clientName}
           </h2>
-          <p className="text-md text-gray-600 mb-4">
+          <p className="text-md text-gray-600 dark:text-gray-400 mb-4">
             Review and customize the email before sending.
           </p>
-          <div className="border-t pt-4 space-y-4">
+          <div className="border-t dark:border-gray-700 pt-4 space-y-4">
             <div>
-              <label htmlFor="emailSubject" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="emailSubject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Subject
               </label>
               <input
@@ -69,11 +69,11 @@ ${broker.contactNumber || ''}`;
                 id="emailSubject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm"
               />
             </div>
             <div>
-              <label htmlFor="emailBody" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="emailBody" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Body
               </label>
               <textarea
@@ -81,12 +81,12 @@ ${broker.contactNumber || ''}`;
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={12}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm"
               />
             </div>
           </div>
         </div>
-        <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg mt-auto">
+        <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg mt-auto">
           <button
             type="button"
             onClick={handleSend}
@@ -97,7 +97,7 @@ ${broker.contactNumber || ''}`;
           <button
             type="button"
             onClick={onClose}
-            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 dark:border-gray-500 text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
           >
             Cancel
           </button>

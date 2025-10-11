@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { User, Application, ApplicationStatus, Role, STATUS_ORDER, STATUS_DISPLAY_NAMES } from '../../types';
-import { createApplication, updateApplication, deleteApplication } from '../../services/applicationService';
-import { createBroker } from '../../services/userService';
 import ApplicationModal from '../ui/ApplicationModal';
 import ConfirmModal from '../ui/ConfirmModal';
 import HistoryModal from '../ui/HistoryModal';
@@ -13,9 +11,9 @@ interface BrokerDashboardProps {
   user: User; // The logged-in user
   viewedBroker?: User; // The broker whose dashboard is being viewed (for admins)
   applications: Application[];
-  onUpdateApplications: () => Promise<void>;
+  onUpdateApplications: (updatedApplications: Application[]) => void;
   users: User[];
-  setUsers: () => Promise<void>;
+  setUsers: (users: User[]) => void;
 }
 
 type SortableKeys = 'clientName' | 'mortgageLender' | 'loanAmount' | 'interestRateExpiryDate' | 'status' | 'solicitor.firmName';
@@ -161,67 +159,93 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     setEditingApplication(null);
   };
 
-  const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
-    if (appData.id) {
-      await updateApplication(appData.id, appData);
-      await onUpdateApplications();
-    } else {
+  const handleSaveApplication = (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
+    if (appData.id) { // Editing existing application
+      const updatedApplications = applications.map(app =>
+        app.id === appData.id ? { ...app, ...appData } : app
+      );
+      onUpdateApplications(updatedApplications);
+    } else { // Creating new application
       const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
       let clientId: string;
-
+      
       if (!clientUser) {
-        const newClient = await createBroker({
+        // Create a new client user if they don't exist
+        const newClient: User = {
+          id: `user-${new Date().getTime()}`,
           name: appData.clientName,
           email: appData.clientEmail,
           role: Role.CLIENT,
           contactNumber: appData.clientContactNumber,
           currentAddress: appData.clientCurrentAddress,
-        });
-
-        if (!newClient) {
-          alert('Failed to create client. Please try again.');
-          return;
-        }
-
+        };
+        setUsers([...users, newClient]);
         clientId = newClient.id;
-        await setUsers();
       } else {
         clientId = clientUser.id;
       }
 
-      const newApp: Omit<Application, 'id' | 'history'> = {
+      const newApplication: Application = {
         ...appData,
+        id: `app-${new Date().getTime()}`,
         clientId: clientId,
-        brokerId: displayUser.id,
+        brokerId: displayUser.id, // Assign to the broker being viewed, or self if not viewing
+        history: [{ status: appData.status, date: new Date().toISOString() }],
         notes: appData.notes || '',
       };
-
-      await createApplication(newApp);
-      await onUpdateApplications();
+      onUpdateApplications([...applications, newApplication]);
     }
     handleCloseModal();
   };
 
-  const handleUpdateStatus = async (appId: string, newStatus: ApplicationStatus) => {
-    await updateApplication(appId, { status: newStatus });
-    await onUpdateApplications();
+  const handleUpdateStatus = (appId: string, newStatus: ApplicationStatus) => {
+    const updatedApplications = applications.map(app => {
+      if (app.id === appId && app.status !== newStatus) {
+        return {
+          ...app,
+          status: newStatus,
+          history: [...app.history, { status: newStatus, date: new Date().toISOString() }],
+        };
+      }
+      return app;
+    });
+    onUpdateApplications(updatedApplications);
   };
 
-  const handleDeleteApplication = async () => {
+  const handleDeleteApplication = () => {
     if (deletingApplicationId) {
-      await deleteApplication(deletingApplicationId);
-      await onUpdateApplications();
+      const updatedApplications = applications.filter(app => app.id !== deletingApplicationId);
+      onUpdateApplications(updatedApplications);
       setDeletingApplicationId(null);
     }
   };
 
-  const handleSaveNotes = async (appId: string, newNotes: string) => {
-    await updateApplication(appId, { notes: newNotes });
-    await onUpdateApplications();
+  const handleSaveNotes = (appId: string, newNotes: string) => {
+    const updatedApplications = applications.map(app => 
+      app.id === appId ? { ...app, notes: newNotes } : app
+    );
+    onUpdateApplications(updatedApplications);
     setNotesModalApp(null);
   };
   
-  const handleSendEmail = async (app: Application) => {
+  const handleSendEmail = (app: Application) => {
+    const updatedApplications = applications.map(currentApp => {
+      if (currentApp.id === app.id) {
+        return {
+          ...currentApp,
+          history: [
+            ...currentApp.history,
+            {
+              status: ApplicationStatus.RATE_EXPIRY_REMINDER_SENT,
+              date: new Date().toISOString(),
+            },
+          ],
+        };
+      }
+      return currentApp;
+    });
+    onUpdateApplications(updatedApplications);
+    
     alert(`An expiry notification has been sent to ${app.clientName}.`);
     setEmailedClients(prev => new Set(prev).add(app.id));
     setEmailModalApp(null);
@@ -230,15 +254,15 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
 
   return (
     <div className="container mx-auto">
-       <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-brand-dark">
+                    <h1 className="text-2xl font-bold text-brand-dark dark:text-gray-100">
                         {viewedBroker ? `${viewedBroker.name}'s Dashboard` : `${user.name}'s Dashboard`}
-                        {viewedBroker && <span className="text-base font-normal text-gray-500 ml-2">(Viewing as {user.name})</span>}
+                        {viewedBroker && <span className="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">(Viewing as {user.name})</span>}
                     </h1>
                     {displayUser.companyName && (
-                        <p className="text-md text-gray-600 font-medium">{displayUser.companyName}</p>
+                        <p className="text-md text-gray-600 dark:text-gray-400 font-medium">{displayUser.companyName}</p>
                     )}
                 </div>
                 <div className="w-full md:w-auto flex flex-col sm:flex-row gap-4">
@@ -247,12 +271,12 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                     placeholder="Search by name, email, etc..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+                    className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
                 />
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | '')}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
                     aria-label="Filter by status"
                 >
                     <option value="">All Statuses</option>
@@ -273,31 +297,31 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
        </div>
 
        <div className="mb-8">
-            <h2 className="text-xl font-semibold text-brand-dark mb-4">Pipeline Overview</h2>
+            <h2 className="text-xl font-semibold text-brand-dark dark:text-gray-200 mb-4">Pipeline Overview</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 {STATUS_ORDER.map(status => (
-                    <div key={status} className="bg-white p-4 rounded-lg shadow text-center">
-                        <p className="text-sm font-medium text-gray-500 truncate" title={STATUS_DISPLAY_NAMES[status]}>{STATUS_DISPLAY_NAMES[status]}</p>
-                        <p className="text-3xl font-bold text-brand-primary mt-2">{statusCounts[status]}</p>
+                    <div key={status} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-center">
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate" title={STATUS_DISPLAY_NAMES[status]}>{STATUS_DISPLAY_NAMES[status]}</p>
+                        <p className="text-3xl font-bold text-brand-primary dark:text-blue-400 mt-2">{statusCounts[status]}</p>
                     </div>
                 ))}
             </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th onClick={() => requestSort('clientName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Client / Property{getSortIndicator('clientName')}</th>
-                <th onClick={() => requestSort('mortgageLender')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Lender{getSortIndicator('mortgageLender')}</th>
-                <th onClick={() => requestSort('solicitor.firmName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Solicitor Firm{getSortIndicator('solicitor.firmName')}</th>
-                <th onClick={() => requestSort('loanAmount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Loan{getSortIndicator('loanAmount')}</th>
-                <th onClick={() => requestSort('interestRateExpiryDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Rate / Expiry{getSortIndicator('interestRateExpiryDate')}</th>
-                <th onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] cursor-pointer">Status{getSortIndicator('status')}</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th onClick={() => requestSort('clientName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Client / Property{getSortIndicator('clientName')}</th>
+                <th onClick={() => requestSort('mortgageLender')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Lender{getSortIndicator('mortgageLender')}</th>
+                <th onClick={() => requestSort('solicitor.firmName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Solicitor Firm{getSortIndicator('solicitor.firmName')}</th>
+                <th onClick={() => requestSort('loanAmount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Loan{getSortIndicator('loanAmount')}</th>
+                <th onClick={() => requestSort('interestRateExpiryDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Rate / Expiry{getSortIndicator('interestRateExpiryDate')}</th>
+                <th onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px] cursor-pointer">Status{getSortIndicator('status')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedAndFilteredApplications.map(app => {
                 const sixMonthsFromNow = new Date();
                 sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
@@ -307,21 +331,21 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                 return (
                   <tr key={app.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary hover:underline text-left">
+                      <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary dark:text-blue-400 hover:underline text-left">
                           {app.clientName}
                       </button>
-                      <div className="text-sm text-gray-500">{app.propertyAddress}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{app.mortgageLender}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary hover:underline text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary dark:text-blue-400 hover:underline text-left">
                           {app.solicitor.firmName}
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(app.loanAmount)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(app.loanAmount)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-700">{app.interestRate.toFixed(2)}%</div>
-                      <div className={`text-xs ${isExpiringSoon ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                      <div className="text-sm text-gray-700 dark:text-gray-300">{app.interestRate.toFixed(2)}%</div>
+                      <div className={`text-xs ${isExpiringSoon ? 'text-red-500 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
                         Expires: {new Date(app.interestRateExpiryDate).toLocaleDateString('en-GB')}
                       </div>
                     </td>
@@ -329,7 +353,7 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                        <select
                           value={app.status}
                           onChange={(e) => handleUpdateStatus(app.id, e.target.value as ApplicationStatus)}
-                          className="w-full pl-3 pr-10 py-2 text-sm bg-brand-primary border-brand-secondary text-white focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary rounded-md"
+                          className="w-full pl-3 pr-10 py-2 text-sm bg-brand-primary dark:bg-gray-600 border-brand-secondary dark:border-gray-500 text-white focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary rounded-md"
                         >
                           {STATUS_ORDER.map(status => (
                             <option key={status} value={status}>
@@ -343,14 +367,14 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                         <button
                           onClick={() => setEmailModalApp(app)}
                           disabled={emailedClients.has(app.id)}
-                          className="text-yellow-600 hover:text-yellow-900 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
                         >
                           {emailedClients.has(app.id) ? 'Emailed' : 'Email'}
                         </button>
                       )}
-                      <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 mr-4">Notes</button>
-                      <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
-                      <button onClick={() => setDeletingApplicationId(app.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                      <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-4">Notes</button>
+                      <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4">Edit</button>
+                      <button onClick={() => setDeletingApplicationId(app.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
                     </td>
                   </tr>
                 )
@@ -359,7 +383,7 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
           </table>
             {sortedAndFilteredApplications.length === 0 && (
                  <div className="text-center py-12">
-                    <p className="text-gray-500">No applications found.</p>
+                    <p className="text-gray-500 dark:text-gray-400">No applications found.</p>
                 </div>
             )}
         </div>

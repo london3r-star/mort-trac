@@ -22,8 +22,8 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ currentStatus }) => {
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
                     isCompleted ? 'bg-brand-secondary text-white' : 
-                    isActive ? 'bg-brand-secondary ring-4 ring-brand-accent text-white' : 
-                    'bg-gray-300 text-gray-600'
+                    isActive ? 'bg-brand-secondary ring-4 ring-brand-accent dark:ring-blue-500/50 text-white' : 
+                    'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                   }`}
                 >
                   {isCompleted ? (
@@ -34,12 +34,12 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ currentStatus }) => {
                     <span>{index + 1}</span>
                   )}
                 </div>
-                <p className={`mt-2 text-xs text-center font-semibold ${isActive ? 'text-brand-secondary' : 'text-gray-500'}`} style={{minWidth: '60px'}}>
+                <p className={`mt-2 text-xs text-center font-semibold ${isActive ? 'text-brand-secondary dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} style={{minWidth: '60px'}}>
                   {STATUS_DISPLAY_NAMES[status]}
                 </p>
               </div>
               {index < STATUS_ORDER.length - 1 && (
-                <div className={`flex-1 h-1 transition-all duration-500 ${isCompleted ? 'bg-brand-secondary' : 'bg-gray-300'}`}></div>
+                <div className={`flex-1 h-1 transition-all duration-500 ${isCompleted ? 'bg-brand-secondary' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
               )}
             </React.Fragment>
           );
