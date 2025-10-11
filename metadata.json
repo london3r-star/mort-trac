@@ -1,0 +1,5 @@
+{
+  "name": "Mortgage Tracker Pro",
+  "description": "A secure web application for a mortgage brokerage firm that allows both brokers and customers to log in and track the status of a mortgage application. It features role-based access, a clear progress tracker, and application management functionalities.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,393 @@
+import React, { useState, useMemo } from 'react';
+import { User, Application, ApplicationStatus, Role, STATUS_ORDER, STATUS_DISPLAY_NAMES } from '../../types';
+import ApplicationModal from '../ui/ApplicationModal';
+import ConfirmModal from '../ui/ConfirmModal';
+import HistoryModal from '../ui/HistoryModal';
+import SolicitorInfoModal from '../ui/SolicitorInfoModal';
+import NotesModal from '../ui/NotesModal';
+
+interface BrokerDashboardProps {
+  user: User; // The logged-in user
+  viewedBroker?: User; // The broker whose dashboard is being viewed (for admins)
+  applications: Application[];
+  onUpdateApplications: (updatedApplications: Application[]) => void;
+  users: User[];
+  setUsers: (users: User[]) => void;
+}
+
+type SortableKeys = 'clientName' | 'mortgageLender' | 'loanAmount' | 'interestRateExpiryDate' | 'status' | 'solicitor.firmName';
+
+const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, applications, onUpdateApplications, users, setUsers }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingApplication, setEditingApplication] = useState<Application | null>(null);
+  const [deletingApplicationId, setDeletingApplicationId] = useState<string | null>(null);
+  const [historyModalApp, setHistoryModalApp] = useState<Application | null>(null);
+  const [viewingSolicitorApp, setViewingSolicitorApp] = useState<Application | null>(null);
+  const [notesModalApp, setNotesModalApp] = useState<Application | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
+
+  const displayUser = viewedBroker || user;
+
+  const brokerVisibleApplications = useMemo(() => {
+    // If an admin/manager is viewing a specific broker's dashboard, show only that broker's applications.
+    if (viewedBroker) {
+      return applications.filter(app => app.brokerId === viewedBroker.id);
+    }
+
+    // Default dashboard views based on role:
+    // Head admin sees all applications across all companies.
+    if (user.isAdmin) {
+      return applications;
+    }
+    
+    // Team Managers and Broker Admins see all applications from their own company.
+    if (user.isTeamManager || user.isBrokerAdmin) {
+      const companyBrokerIds = users
+        .filter(u => u.role === Role.BROKER && u.companyName === user.companyName)
+        .map(u => u.id);
+      return applications.filter(app => companyBrokerIds.includes(app.brokerId));
+    }
+
+    // Default for a standard broker: see only their own applications.
+    return applications.filter(app => app.brokerId === user.id);
+  }, [applications, user, users, viewedBroker]);
+
+  const statusCounts = useMemo(() => {
+    const counts = STATUS_ORDER.reduce((acc, status) => {
+        acc[status] = 0;
+        return acc;
+    }, {} as Record<ApplicationStatus, number>);
+
+    brokerVisibleApplications.forEach(app => {
+        if (counts[app.status] !== undefined) {
+            counts[app.status]++;
+        }
+    });
+
+    return counts;
+  }, [brokerVisibleApplications]);
+
+  const sortedAndFilteredApplications = useMemo(() => {
+    let filtered = brokerVisibleApplications;
+
+    if (statusFilter) {
+      filtered = filtered.filter(app => app.status === statusFilter);
+    }
+
+    if (searchTerm) {
+        const lowercasedFilter = searchTerm.toLowerCase();
+        filtered = filtered.filter(app => {
+            return (
+                app.clientName.toLowerCase().includes(lowercasedFilter) ||
+                app.clientEmail.toLowerCase().includes(lowercasedFilter) ||
+                app.propertyAddress.toLowerCase().includes(lowercasedFilter) ||
+                app.mortgageLender.toLowerCase().includes(lowercasedFilter) ||
+                (app.solicitor && app.solicitor.firmName.toLowerCase().includes(lowercasedFilter)) ||
+                STATUS_DISPLAY_NAMES[app.status].toLowerCase().includes(lowercasedFilter)
+            );
+        });
+    }
+    
+    if (sortConfig !== null) {
+      const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
+      
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+        
+        if (sortConfig.key === 'status') {
+            aValue = STATUS_ORDER.indexOf(a.status);
+            bValue = STATUS_ORDER.indexOf(b.status);
+        } else {
+            aValue = getNestedValue(a, sortConfig.key);
+            bValue = getNestedValue(b, sortConfig.key);
+        }
+
+        if (aValue === undefined || aValue === null) return 1;
+        if (bValue === undefined || bValue === null) return -1;
+        
+        let comparison = 0;
+        if (aValue > bValue) {
+            comparison = 1;
+        } else if (aValue < bValue) {
+            comparison = -1;
+        }
+        
+        return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
+      });
+    } else {
+        // Default sort by most recent update
+        filtered.sort((a, b) => new Date(b.history[b.history.length-1].date).getTime() - new Date(a.history[a.history.length-1].date).getTime());
+    }
+
+    return filtered;
+
+  }, [brokerVisibleApplications, searchTerm, sortConfig, statusFilter]);
+
+  const requestSort = (key: SortableKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIndicator = (key: SortableKeys) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return null;
+    }
+    return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
+  };
+
+  const handleOpenCreateModal = () => {
+    setEditingApplication(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (app: Application) => {
+    setEditingApplication(app);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingApplication(null);
+  };
+
+  const handleSaveApplication = (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
+    if (appData.id) { // Editing existing application
+      const updatedApplications = applications.map(app =>
+        app.id === appData.id ? { ...app, ...appData } : app
+      );
+      onUpdateApplications(updatedApplications);
+    } else { // Creating new application
+      const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
+      let clientId: string;
+      
+      if (!clientUser) {
+        // Create a new client user if they don't exist
+        const newClient: User = {
+          id: `user-${new Date().getTime()}`,
+          name: appData.clientName,
+          email: appData.clientEmail,
+          role: Role.CLIENT,
+          contactNumber: appData.clientContactNumber,
+          currentAddress: appData.clientCurrentAddress,
+        };
+        setUsers([...users, newClient]);
+        clientId = newClient.id;
+      } else {
+        clientId = clientUser.id;
+      }
+
+      const newApplication: Application = {
+        ...appData,
+        id: `app-${new Date().getTime()}`,
+        clientId: clientId,
+        brokerId: displayUser.id, // Assign to the broker being viewed, or self if not viewing
+        history: [{ status: appData.status, date: new Date().toISOString() }],
+        notes: appData.notes || '',
+      };
+      onUpdateApplications([...applications, newApplication]);
+    }
+    handleCloseModal();
+  };
+
+  const handleUpdateStatus = (appId: string, newStatus: ApplicationStatus) => {
+    const updatedApplications = applications.map(app => {
+      if (app.id === appId && app.status !== newStatus) {
+        return {
+          ...app,
+          status: newStatus,
+          history: [...app.history, { status: newStatus, date: new Date().toISOString() }],
+        };
+      }
+      return app;
+    });
+    onUpdateApplications(updatedApplications);
+  };
+
+  const handleDeleteApplication = () => {
+    if (deletingApplicationId) {
+      const updatedApplications = applications.filter(app => app.id !== deletingApplicationId);
+      onUpdateApplications(updatedApplications);
+      setDeletingApplicationId(null);
+    }
+  };
+
+  const handleSaveNotes = (appId: string, newNotes: string) => {
+    const updatedApplications = applications.map(app => 
+      app.id === appId ? { ...app, notes: newNotes } : app
+    );
+    onUpdateApplications(updatedApplications);
+    setNotesModalApp(null);
+  };
+
+
+  return (
+    <div className="container mx-auto">
+       <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-brand-dark">
+                        {viewedBroker ? `${viewedBroker.name}'s Dashboard` : `${user.name}'s Dashboard`}
+                        {viewedBroker && <span className="text-base font-normal text-gray-500 ml-2">(Viewing as {user.name})</span>}
+                    </h1>
+                    {displayUser.companyName && (
+                        <p className="text-md text-gray-600 font-medium">{displayUser.companyName}</p>
+                    )}
+                </div>
+                <div className="w-full md:w-auto flex flex-col sm:flex-row gap-4">
+                <input
+                    type="text"
+                    placeholder="Search by name, email, etc..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+                />
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | '')}
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+                    aria-label="Filter by status"
+                >
+                    <option value="">All Statuses</option>
+                    {STATUS_ORDER.map(status => (
+                        <option key={status} value={status}>
+                            {STATUS_DISPLAY_NAMES[status]}
+                        </option>
+                    ))}
+                </select>
+                <button
+                    onClick={handleOpenCreateModal}
+                    className="px-4 py-2 bg-brand-secondary text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition-colors flex-shrink-0"
+                >
+                    New Application
+                </button>
+                </div>
+            </div>
+       </div>
+
+       <div className="mb-8">
+            <h2 className="text-xl font-semibold text-brand-dark mb-4">Pipeline Overview</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                {STATUS_ORDER.map(status => (
+                    <div key={status} className="bg-white p-4 rounded-lg shadow text-center">
+                        <p className="text-sm font-medium text-gray-500 truncate" title={STATUS_DISPLAY_NAMES[status]}>{STATUS_DISPLAY_NAMES[status]}</p>
+                        <p className="text-3xl font-bold text-brand-primary mt-2">{statusCounts[status]}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th onClick={() => requestSort('clientName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Client / Property{getSortIndicator('clientName')}</th>
+                <th onClick={() => requestSort('mortgageLender')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Lender{getSortIndicator('mortgageLender')}</th>
+                <th onClick={() => requestSort('solicitor.firmName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Solicitor Firm{getSortIndicator('solicitor.firmName')}</th>
+                <th onClick={() => requestSort('loanAmount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Loan{getSortIndicator('loanAmount')}</th>
+                <th onClick={() => requestSort('interestRateExpiryDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">Rate / Expiry{getSortIndicator('interestRateExpiryDate')}</th>
+                <th onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] cursor-pointer">Status{getSortIndicator('status')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedAndFilteredApplications.map(app => {
+                const sixMonthsFromNow = new Date();
+                sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+                const expiryDate = new Date(app.interestRateExpiryDate);
+                const isExpiringSoon = expiryDate < sixMonthsFromNow;
+
+                return (
+                  <tr key={app.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary hover:underline text-left">
+                          {app.clientName}
+                      </button>
+                      <div className="text-sm text-gray-500">{app.propertyAddress}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{app.mortgageLender}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary hover:underline text-left">
+                          {app.solicitor.firmName}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(app.loanAmount)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-700">{app.interestRate.toFixed(2)}%</div>
+                      <div className={`text-xs ${isExpiringSoon ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                        Expires: {new Date(app.interestRateExpiryDate).toLocaleDateString('en-GB')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                       <select
+                          value={app.status}
+                          onChange={(e) => handleUpdateStatus(app.id, e.target.value as ApplicationStatus)}
+                          className="w-full pl-3 pr-10 py-2 text-sm bg-brand-primary border-brand-secondary text-white focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary rounded-md"
+                        >
+                          {STATUS_ORDER.map(status => (
+                            <option key={status} value={status}>
+                              {STATUS_DISPLAY_NAMES[status]}
+                            </option>
+                          ))}
+                        </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 mr-4">Notes</button>
+                      <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
+                      <button onClick={() => setDeletingApplicationId(app.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+            {sortedAndFilteredApplications.length === 0 && (
+                 <div className="text-center py-12">
+                    <p className="text-gray-500">No applications found.</p>
+                </div>
+            )}
+        </div>
+
+      <ApplicationModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveApplication}
+        application={editingApplication}
+      />
+
+      <ConfirmModal
+        isOpen={!!deletingApplicationId}
+        onClose={() => setDeletingApplicationId(null)}
+        onConfirm={handleDeleteApplication}
+        title="Delete Application"
+        message="Are you sure you want to delete this application? This action cannot be undone."
+      />
+
+      <HistoryModal
+        isOpen={!!historyModalApp}
+        onClose={() => setHistoryModalApp(null)}
+        application={historyModalApp}
+      />
+
+      <SolicitorInfoModal
+        isOpen={!!viewingSolicitorApp}
+        onClose={() => setViewingSolicitorApp(null)}
+        application={viewingSolicitorApp}
+      />
+
+      <NotesModal
+        isOpen={!!notesModalApp}
+        onClose={() => setNotesModalApp(null)}
+        onSave={(newNotes) => handleSaveNotes(notesModalApp!.id, newNotes)}
+        application={notesModalApp}
+      />
+    </div>
+  );
+};
+
+export default BrokerDashboard;
