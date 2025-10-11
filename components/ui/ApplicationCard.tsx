@@ -16,6 +16,8 @@ const statusColorMap: Record<ApplicationStatus, string> = {
     [ApplicationStatus.MORTGAGE_OFFERED]: 'bg-green-100 text-green-800',
     [ApplicationStatus.CONTRACTS_EXCHANGED]: 'bg-pink-100 text-pink-800',
     [ApplicationStatus.PURCHASE_COMPLETED]: 'bg-brand-secondary text-white',
+    // FIX: Added missing status to satisfy the Record<ApplicationStatus, string> type.
+    [ApplicationStatus.RATE_EXPIRY_REMINDER_SENT]: 'bg-orange-100 text-orange-800',
 };
 
 const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onUpdateStatus, onEdit, onDelete }) => {

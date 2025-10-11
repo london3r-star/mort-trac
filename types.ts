@@ -11,6 +11,7 @@ export enum ApplicationStatus {
   MORTGAGE_OFFERED = 'MORTGAGE_OFFERED',
   CONTRACTS_EXCHANGED = 'CONTRACTS_EXCHANGED',
   PURCHASE_COMPLETED = 'PURCHASE_COMPLETED',
+  RATE_EXPIRY_REMINDER_SENT = 'RATE_EXPIRY_REMINDER_SENT',
 }
 
 export interface Solicitor {
@@ -76,4 +77,5 @@ export const STATUS_DISPLAY_NAMES: Record<ApplicationStatus, string> = {
   [ApplicationStatus.MORTGAGE_OFFERED]: 'Mortgage Offered',
   [ApplicationStatus.CONTRACTS_EXCHANGED]: 'Contracts Exchanged',
   [ApplicationStatus.PURCHASE_COMPLETED]: 'Purchase Completed',
+  [ApplicationStatus.RATE_EXPIRY_REMINDER_SENT]: 'Rate Expiry Reminder Sent',
 };

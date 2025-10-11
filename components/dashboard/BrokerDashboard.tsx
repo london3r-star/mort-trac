@@ -5,6 +5,7 @@ import ConfirmModal from '../ui/ConfirmModal';
 import HistoryModal from '../ui/HistoryModal';
 import SolicitorInfoModal from '../ui/SolicitorInfoModal';
 import NotesModal from '../ui/NotesModal';
+import EmailClientModal from '../ui/EmailClientModal';
 
 interface BrokerDashboardProps {
   user: User; // The logged-in user
@@ -26,7 +27,9 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
   const [historyModalApp, setHistoryModalApp] = useState<Application | null>(null);
   const [viewingSolicitorApp, setViewingSolicitorApp] = useState<Application | null>(null);
   const [notesModalApp, setNotesModalApp] = useState<Application | null>(null);
+  const [emailModalApp, setEmailModalApp] = useState<Application | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
+  const [emailedClients, setEmailedClients] = useState<Set<string>>(new Set());
 
   const displayUser = viewedBroker || user;
 
@@ -224,6 +227,29 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     onUpdateApplications(updatedApplications);
     setNotesModalApp(null);
   };
+  
+  const handleSendEmail = (app: Application) => {
+    const updatedApplications = applications.map(currentApp => {
+      if (currentApp.id === app.id) {
+        return {
+          ...currentApp,
+          history: [
+            ...currentApp.history,
+            {
+              status: ApplicationStatus.RATE_EXPIRY_REMINDER_SENT,
+              date: new Date().toISOString(),
+            },
+          ],
+        };
+      }
+      return currentApp;
+    });
+    onUpdateApplications(updatedApplications);
+    
+    alert(`An expiry notification has been sent to ${app.clientName}.`);
+    setEmailedClients(prev => new Set(prev).add(app.id));
+    setEmailModalApp(null);
+  };
 
 
   return (
@@ -337,6 +363,15 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                         </select>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {isExpiringSoon && (
+                        <button
+                          onClick={() => setEmailModalApp(app)}
+                          disabled={emailedClients.has(app.id)}
+                          className="text-yellow-600 hover:text-yellow-900 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {emailedClients.has(app.id) ? 'Emailed' : 'Email'}
+                        </button>
+                      )}
                       <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 mr-4">Notes</button>
                       <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
                       <button onClick={() => setDeletingApplicationId(app.id)} className="text-red-600 hover:text-red-900">Delete</button>
@@ -386,6 +421,14 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
         onSave={(newNotes) => handleSaveNotes(notesModalApp!.id, newNotes)}
         application={notesModalApp}
       />
+        
+      <EmailClientModal
+        isOpen={!!emailModalApp}
+        onClose={() => setEmailModalApp(null)}
+        onSend={() => handleSendEmail(emailModalApp!)}
+        application={emailModalApp}
+        broker={displayUser}
+       />
     </div>
   );
 };
