@@ -200,6 +200,12 @@ CREATE POLICY "Clients can view own applications"
   TO authenticated
   USING (client_id = auth.uid());
 
+-- Add policy to allow users to create their own profile during signup
+CREATE POLICY "Users can insert own profile"
+  ON profiles FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Brokers can view applications they manage"
   ON applications FOR SELECT
   TO authenticated
