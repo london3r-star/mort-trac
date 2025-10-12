@@ -266,8 +266,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                       onClick={() => handleOpenEditModal(broker)} 
                       className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
                       disabled={
-                        (!user.isAdmin && (broker.isAdmin || broker.id === user.id)) ||
-                        (user.isBrokerAdmin && broker.isTeamManager)
+                        (!user.isAdmin && broker.isAdmin) // Non-admins can't edit admins
                       }
                     >
                         Edit
