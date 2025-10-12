@@ -17,6 +17,8 @@ const AppContent: React.FC = () => {
   const [clientApplication, setClientApplication] = useState<Application | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isStableState, setIsStableState] = useState(true);
+  const userStabilityTimeout = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const hash = window.location.hash;
