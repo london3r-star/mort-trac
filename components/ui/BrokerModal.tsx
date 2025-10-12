@@ -81,7 +81,8 @@ const BrokerModal: React.FC<BrokerModalProps> = ({ isOpen, onClose, onSave, exis
         contactNumber,
         companyName,
         isTeamManager,
-        isBrokerAdmin
+        isBrokerAdmin,
+        password: !brokerToEdit ? temporaryPassword : undefined, // Only include password for new brokers
     });
   };
 
