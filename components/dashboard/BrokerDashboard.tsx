@@ -159,41 +159,77 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     setEditingApplication(null);
   };
 
-  const handleSaveApplication = (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
+  const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
     if (appData.id) { // Editing existing application
-      const updatedApplications = applications.map(app =>
-        app.id === appData.id ? { ...app, ...appData } : app
-      );
-      onUpdateApplications(updatedApplications);
+      const { updateApplication } = await import('../../services/supabaseService');
+      const { data, error } = await updateApplication(appData.id, appData);
+      
+      if (error) {
+        console.error('Error updating application:', error);
+        alert('Failed to update application. Please try again.');
+        return;
+      }
+      
+      if (data) {
+        const updatedApplications = applications.map(app =>
+          app.id === appData.id ? data : app
+        );
+        onUpdateApplications(updatedApplications);
+      }
     } else { // Creating new application
+      const { createUserProfile, createApplication } = await import('../../services/supabaseService');
       const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
       let clientId: string;
       
       if (!clientUser) {
-        // Create a new client user if they don't exist
+        // Create a new client user profile in Supabase
+        const { data: newClientData, error: clientError } = await createUserProfile(
+          `temp-${new Date().getTime()}`,
+          appData.clientName,
+          appData.clientEmail,
+          Role.CLIENT,
+          {
+            contactNumber: appData.clientContactNumber,
+            currentAddress: appData.clientCurrentAddress,
+          }
+        );
+        
+        if (clientError || !newClientData) {
+          console.error('Error creating client:', clientError);
+          alert('Failed to create client profile. Please try again.');
+          return;
+        }
+        
         const newClient: User = {
-          id: `user-${new Date().getTime()}`,
-          name: appData.clientName,
-          email: appData.clientEmail,
+          id: newClientData.id,
+          name: newClientData.name,
+          email: newClientData.email,
           role: Role.CLIENT,
           contactNumber: appData.clientContactNumber,
           currentAddress: appData.clientCurrentAddress,
         };
         setUsers([...users, newClient]);
-        clientId = newClient.id;
+        clientId = newClientData.id;
       } else {
         clientId = clientUser.id;
       }
 
-      const newApplication: Application = {
+      const newApplicationData: Omit<Application, 'id' | 'history'> = {
         ...appData,
-        id: `app-${new Date().getTime()}`,
         clientId: clientId,
-        brokerId: displayUser.id, // Assign to the broker being viewed, or self if not viewing
-        history: [{ status: appData.status, date: new Date().toISOString() }],
+        brokerId: displayUser.id,
         notes: appData.notes || '',
       };
-      onUpdateApplications([...applications, newApplication]);
+      
+      const { data: newApp, error: appError } = await createApplication(newApplicationData);
+      
+      if (appError || !newApp) {
+        console.error('Error creating application:', appError);
+        alert('Failed to create application. Please try again.');
+        return;
+      }
+      
+      onUpdateApplications([...applications, newApp]);
     }
     handleCloseModal();
   };
