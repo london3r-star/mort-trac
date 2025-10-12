@@ -88,6 +88,18 @@
 - App is running locally on port 3000 successfully
 - All changes are backward compatible - existing users and applications are not affected
 
+### 4. **Fixed Manage Brokers Page Navigation** ✅
+- **Files**: 
+  - `/app/components/pages/DashboardPage.tsx`
+  - `/app/App.tsx`
+  
+- **Changes**:
+  - Persisted `isManagingBrokers` state to sessionStorage to prevent reset during session transitions
+  - Modified loading condition to not show loading screen during brief auth state changes after initial login
+  - Added `hadUserBefore` flag to track if user has been logged in
+  
+- **Expected Behavior**: When creating a new broker from the Manage Brokers page, the user stays on that page instead of being redirected to the dashboard. The newly created broker appears in the table immediately.
+
 ## Files Modified
 
 1. `/app/App.tsx`
@@ -95,6 +107,7 @@
 3. `/app/components/ui/ApplicationModal.tsx`
 4. `/app/components/dashboard/BrokerDashboard.tsx`
 5. `/app/services/supabaseService.ts`
+6. `/app/components/pages/DashboardPage.tsx`
 
 ## Next Steps
 
