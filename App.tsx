@@ -128,7 +128,11 @@ const AppContent: React.FC = () => {
 
   // Check if user needs to change password
   if (user.mustChangePassword) {
-    return <ChangePasswordPage user={user} onPasswordChanged={fetchData} />;
+    const handlePasswordChanged = async () => {
+      // Force reload the page to refresh user session
+      window.location.reload();
+    };
+    return <ChangePasswordPage user={user} onPasswordChanged={handlePasswordChanged} />;
   }
 
   return (
