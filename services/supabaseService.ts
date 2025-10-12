@@ -87,10 +87,12 @@ export const createClientProfile = async (
         refresh_token: currentSession.refresh_token,
       });
       console.log('🔵 Restored session');
+      // Wait for session to fully restore before proceeding
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     // Wait for user to be committed
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Profile will be auto-created by trigger, but update it with additional data
     const { data, error } = await supabase
