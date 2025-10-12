@@ -71,8 +71,21 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     setIsModalOpen(false);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingBroker) return;
+    
+    // Delete from database
+    const { deleteUser } = await import('../../services/supabaseService');
+    const { error } = await deleteUser(deletingBroker.id);
+    
+    if (error) {
+      console.error('Error deleting broker:', error);
+      alert('Failed to delete broker. Please try again.');
+      setDeletingBroker(null);
+      return;
+    }
+    
+    // Update local state
     const updatedUsers = users.filter(u => u.id !== deletingBroker.id);
     setUsers(updatedUsers);
     setDeletingBroker(null);
