@@ -79,7 +79,7 @@ export const createClientProfile = async (
   return { data: data || authData.user, error };
 };
 
-// Create broker by team manager
+// Create broker by team manager or admin
 export const createBroker = async (
   name: string,
   email: string,
@@ -101,7 +101,8 @@ export const createBroker = async (
         company_name: companyName,
         is_team_manager: isTeamManager || false,
         is_broker_admin: isBrokerAdmin || false,
-      }
+      },
+      emailRedirectTo: undefined, // Don't send confirmation email
     }
   });
 
@@ -109,12 +110,13 @@ export const createBroker = async (
     return { data: null, error: authError };
   }
 
-  // Update profile with additional data
+  // Update profile with additional data and set password change requirement
   const { data, error } = await supabase
     .from('profiles')
     .update({
       contact_number: contactNumber,
       created_by: createdBy,
+      must_change_password: true,
     })
     .eq('id', authData.user.id)
     .select()
