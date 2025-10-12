@@ -275,7 +275,10 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                     <button
                       onClick={() => setDeletingBroker(broker)}
                       className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      disabled={broker.id === user.id || (user.isTeamManager && broker.isAdmin) || user.isBrokerAdmin}
+                      disabled={
+                        broker.id === user.id || // Can't delete yourself
+                        (!user.isAdmin && broker.isAdmin) // Non-admins can't delete admins
+                      }
                     >
                       Remove
                     </button>
