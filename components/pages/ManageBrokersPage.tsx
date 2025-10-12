@@ -85,20 +85,20 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         }
         
         if (data) {
-          const newBroker: User = {
-            id: data.id,
-            name: brokerData.name,
-            email: brokerData.email,
-            contactNumber: brokerData.contactNumber,
-            companyName: brokerData.companyName,
-            role: Role.BROKER,
-            isTeamManager: brokerData.isTeamManager,
-            isBrokerAdmin: brokerData.isBrokerAdmin,
-          };
-          setUsers([...users, newBroker]);
+          // Refresh users list from database
+          const { getAllUsers } = await import('../../services/supabaseService');
+          const { data: updatedUsers } = await getAllUsers();
+          if (updatedUsers) {
+            setUsers(updatedUsers);
+          }
           
-          // Show temporary password to admin
-          alert(`Broker created successfully!\n\nTemporary Password: ${tempPassword}\n\nPlease share this with the new broker. They will be required to change it on first login.`);
+          // Show temporary password modal
+          setPasswordModal({
+            isOpen: true,
+            password: tempPassword,
+            userName: brokerData.name,
+            userEmail: brokerData.email,
+          });
         }
     }
     setIsModalOpen(false);
