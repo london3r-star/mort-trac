@@ -175,10 +175,12 @@ export const createBroker = async (
         refresh_token: currentSession.refresh_token,
       });
       console.log('🔵 Restored admin session');
+      // Wait for session to fully restore before proceeding
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Step 2: Wait longer for auth user to be fully committed
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Step 2: Wait for auth user to be fully committed
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Step 3: Check if trigger already created the profile
     const { data: existingProfile } = await supabase
