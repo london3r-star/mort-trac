@@ -168,7 +168,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
             />
-            {!user.isBrokerAdmin && (
+            {(user.isAdmin || user.isTeamManager) && (
               <button
                 onClick={handleOpenCreateModal}
                 className="w-full md:w-auto px-4 py-2 bg-brand-secondary text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition-colors"
