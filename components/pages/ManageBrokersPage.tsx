@@ -53,11 +53,32 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
             ? { ...u, name: brokerData.name, contactNumber: brokerData.contactNumber, companyName: brokerData.companyName, isTeamManager: brokerData.isTeamManager, isBrokerAdmin: brokerData.isBrokerAdmin } 
             : u
         ));
-    } else { // Creating
-        // Note: Creating new brokers requires Supabase auth signup
-        // For now, we'll just update the local state
-        const newBroker: User = {
-            id: `broker-${new Date().getTime()}`,
+    } else { // Creating new broker
+        const { createBroker } = await import('../../services/supabaseService');
+        
+        // Generate temporary password
+        const tempPassword = `Temp${Math.random().toString(36).slice(2, 10)}!`;
+        
+        const { data, error } = await createBroker(
+          brokerData.name,
+          brokerData.email,
+          tempPassword,
+          brokerData.companyName,
+          user.id, // created_by
+          brokerData.contactNumber,
+          brokerData.isTeamManager,
+          brokerData.isBrokerAdmin
+        );
+        
+        if (error) {
+          console.error('Error creating broker:', error);
+          alert('Failed to create broker. Please try again.');
+          return;
+        }
+        
+        if (data) {
+          const newBroker: User = {
+            id: data.id,
             name: brokerData.name,
             email: brokerData.email,
             contactNumber: brokerData.contactNumber,
@@ -65,8 +86,12 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
             role: Role.BROKER,
             isTeamManager: brokerData.isTeamManager,
             isBrokerAdmin: brokerData.isBrokerAdmin,
-        };
-        setUsers([...users, newBroker]);
+          };
+          setUsers([...users, newBroker]);
+          
+          // Show temporary password to admin
+          alert(`Broker created successfully!\n\nTemporary Password: ${tempPassword}\n\nPlease share this with the new broker. They will be required to change it on first login.`);
+        }
     }
     setIsModalOpen(false);
   };
