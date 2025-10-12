@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import NewLoginPage from './components/pages/NewLoginPage';
 import DashboardPage from './components/pages/DashboardPage';
 import ResetPasswordPage from './components/pages/ResetPasswordPage';
+import ErrorBoundary from './components/ErrorBoundary';
 import { User, Application } from './types';
 import { getAllUsers, getAllApplications, getApplicationsByClientId, subscribeToApplications, subscribeToProfiles } from './services/supabaseService';
 
