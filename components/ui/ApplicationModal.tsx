@@ -35,6 +35,12 @@ const emptyApplication: FormData = {
 const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, onSave, application }) => {
   const [formData, setFormData] = useState<FormData>(emptyApplication);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [temporaryClientPassword, setTemporaryClientPassword] = useState('');
+
+  // Generate random password for client
+  const generatePassword = () => {
+    return `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
+  };
 
   useEffect(() => {
     if (application) {
@@ -43,8 +49,10 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
         ...editableData,
         solicitor: editableData.solicitor || emptySolicitor,
       });
+      setTemporaryClientPassword(''); // No password for editing
     } else {
       setFormData(emptyApplication);
+      setTemporaryClientPassword(generatePassword()); // Auto-generate for new client
     }
     setFormErrors({});
   }, [application, isOpen]);
