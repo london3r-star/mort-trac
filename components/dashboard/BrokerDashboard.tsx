@@ -291,23 +291,22 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     setNotesModalApp(null);
   };
   
-  const handleSendEmail = (app: Application) => {
-    const updatedApplications = applications.map(currentApp => {
-      if (currentApp.id === app.id) {
-        return {
-          ...currentApp,
-          history: [
-            ...currentApp.history,
-            {
-              status: ApplicationStatus.RATE_EXPIRY_REMINDER_SENT,
-              date: new Date().toISOString(),
-            },
-          ],
-        };
-      }
-      return currentApp;
-    });
-    onUpdateApplications(updatedApplications);
+  const handleSendEmail = async (app: Application) => {
+    const { updateApplicationStatus } = await import('../../services/supabaseService');
+    const { data, error } = await updateApplicationStatus(app.id, ApplicationStatus.RATE_EXPIRY_REMINDER_SENT);
+    
+    if (error) {
+      console.error('Error sending email notification:', error);
+      alert('Failed to send notification. Please try again.');
+      return;
+    }
+    
+    if (data) {
+      const updatedApplications = applications.map(currentApp =>
+        currentApp.id === app.id ? data : currentApp
+      );
+      onUpdateApplications(updatedApplications);
+    }
     
     alert(`An expiry notification has been sent to ${app.clientName}.`);
     setEmailedClients(prev => new Set(prev).add(app.id));
