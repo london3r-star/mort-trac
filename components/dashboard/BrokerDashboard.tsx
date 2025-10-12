@@ -234,18 +234,25 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     handleCloseModal();
   };
 
-  const handleUpdateStatus = (appId: string, newStatus: ApplicationStatus) => {
-    const updatedApplications = applications.map(app => {
-      if (app.id === appId && app.status !== newStatus) {
-        return {
-          ...app,
-          status: newStatus,
-          history: [...app.history, { status: newStatus, date: new Date().toISOString() }],
-        };
-      }
-      return app;
-    });
-    onUpdateApplications(updatedApplications);
+  const handleUpdateStatus = async (appId: string, newStatus: ApplicationStatus) => {
+    const app = applications.find(a => a.id === appId);
+    if (!app || app.status === newStatus) return;
+    
+    const { updateApplicationStatus } = await import('../../services/supabaseService');
+    const { data, error } = await updateApplicationStatus(appId, newStatus);
+    
+    if (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
+      return;
+    }
+    
+    if (data) {
+      const updatedApplications = applications.map(app =>
+        app.id === appId ? data : app
+      );
+      onUpdateApplications(updatedApplications);
+    }
   };
 
   const handleDeleteApplication = () => {
