@@ -30,30 +30,41 @@ const ChangePasswordPage: React.FC<ChangePasswordPageProps> = ({ user, onPasswor
 
     setLoading(true);
 
-    // Update password
-    const { error: passError } = await updatePassword(newPassword);
+    try {
+      // Update password
+      const { error: passError } = await updatePassword(newPassword);
 
-    if (passError) {
-      setError(passError.message || 'Failed to update password');
+      if (passError) {
+        setError(passError.message || 'Failed to update password');
+        setLoading(false);
+        return;
+      }
+
+      // Update must_change_password flag in database
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ must_change_password: false })
+        .eq('id', user.id);
+
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+        setError('Password updated but failed to update profile. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Password and profile updated successfully');
+      
+      // Wait a moment for database to commit before reloading
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setLoading(false);
-      return;
-    }
-
-    // Update must_change_password flag in database
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ must_change_password: false })
-      .eq('id', user.id);
-
-    if (profileError) {
-      console.error('Error updating profile:', profileError);
-      setError('Password updated but failed to update profile. Please try again.');
+      onPasswordChanged();
+    } catch (error) {
+      console.error('❌ Error in password change:', error);
+      setError('An unexpected error occurred. Please try again.');
       setLoading(false);
-      return;
     }
-
-    setLoading(false);
-    onPasswordChanged();
   };
 
   return (
