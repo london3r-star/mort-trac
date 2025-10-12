@@ -92,6 +92,10 @@ const AppContent: React.FC = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  if (databaseError) {
+    return <DatabaseSetupNotice />;
+  }
+
   if (loading || (user && dataLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-brand-primary">
