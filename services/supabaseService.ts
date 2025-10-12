@@ -48,35 +48,73 @@ export const createClientProfile = async (
   currentAddress?: string,
   createdBy?: string
 ) => {
-  // First create auth user
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name,
-        role: 'CLIENT',
+  try {
+    console.log('🔵 Creating client profile for:', email);
+    
+    // Save current session to restore later
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    console.log('🔵 Saved current session');
+    
+    // First create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role: 'CLIENT',
+        },
+        emailRedirectTo: undefined,
       }
+    });
+
+    console.log('🔵 Client auth signup response:', { authData, authError });
+
+    if (authError || !authData.user) {
+      return { data: null, error: authError };
     }
-  });
 
-  if (authError || !authData.user) {
-    return { data: null, error: authError };
+    console.log('✅ Client auth user created:', authData.user.id);
+    
+    // Sign out the new client immediately
+    await supabase.auth.signOut();
+    console.log('🔵 Signed out new client');
+    
+    // Restore broker/admin session
+    if (currentSession) {
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+      });
+      console.log('🔵 Restored session');
+    }
+    
+    // Wait for user to be committed
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Profile will be auto-created by trigger, but update it with additional data
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: authData.user.id,
+        name: name,
+        email: email,
+        role: 'CLIENT',
+        contact_number: contactNumber,
+        current_address: currentAddress,
+        created_by: createdBy,
+        must_change_password: true,
+      })
+      .select()
+      .single();
+
+    console.log('🔵 Client profile upsert response:', { data, error });
+
+    return { data: data || authData.user, error };
+  } catch (err) {
+    console.error('❌ Error creating client:', err);
+    return { data: null, error: err as Error };
   }
-
-  // Profile will be auto-created by trigger, but update it with additional data
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({
-      contact_number: contactNumber,
-      current_address: currentAddress,
-      created_by: createdBy,
-    })
-    .eq('id', authData.user.id)
-    .select()
-    .single();
-
-  return { data: data || authData.user, error };
 };
 
 // Create broker by team manager or admin
