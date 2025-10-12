@@ -77,8 +77,9 @@ const AppContent: React.FC = () => {
     setApplications(updatedApplications);
   };
 
+  const { signOut } = useAuth();
+  
   const handleLogout = async () => {
-    const { signOut } = useAuth();
     await signOut();
     setUsers([]);
     setApplications([]);
