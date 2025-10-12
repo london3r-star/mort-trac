@@ -24,31 +24,12 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Fetch data when user is logged in
-  useEffect(() => {
-    if (user) {
-      fetchData();
-      
-      // Subscribe to real-time updates
-      const appsSubscription = subscribeToApplications(() => {
-        fetchData();
-      });
-
-      const profilesSubscription = subscribeToProfiles(() => {
-        fetchData();
-      });
-
-      return () => {
-        appsSubscription.unsubscribe();
-        profilesSubscription.unsubscribe();
-      };
-    } else {
-      setDataLoading(false);
-    }
-  }, [user, fetchData]);
-
+  // Fetch data function
   const fetchData = React.useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setDataLoading(false);
+      return;
+    }
     
     setDataLoading(true);
     try {
@@ -74,6 +55,29 @@ const AppContent: React.FC = () => {
       setDataLoading(false);
     }
   }, [user]);
+
+  // Fetch data when user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchData();
+      
+      // Subscribe to real-time updates
+      const appsSubscription = subscribeToApplications(() => {
+        fetchData();
+      });
+
+      const profilesSubscription = subscribeToProfiles(() => {
+        fetchData();
+      });
+
+      return () => {
+        appsSubscription.unsubscribe();
+        profilesSubscription.unsubscribe();
+      };
+    } else {
+      setDataLoading(false);
+    }
+  }, [user, fetchData]);
 
   const handleUpdateApplications = (updatedApplications: Application[]) => {
     setApplications(updatedApplications);
