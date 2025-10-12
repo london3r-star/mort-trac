@@ -25,21 +25,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (authUser: SupabaseUser) => {
     try {
+      console.log('👤 Fetching profile for user:', authUser.id, authUser.email);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .maybeSingle();
 
+      console.log('📊 Profile query result:', { data, error });
+
       if (error) {
         // If table doesn't exist or other database error, log and continue
-        console.warn('Database query failed (tables may not be set up yet):', error.message);
+        console.error('❌ Database query failed:', error.message);
+        console.error('Full error:', error);
+        
         // Check if it's a table not found error
         if (error.message.includes('relation "public.profiles" does not exist') || 
             error.message.includes('does not exist')) {
+          console.error('🔴 CRITICAL: profiles table does not exist!');
           setDatabaseError(true);
         }
         // Sign out the user since we can't fetch their profile
+        console.log('🚪 Signing out user due to profile fetch error');
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
@@ -47,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
+        console.log('✅ Profile found:', data.email, 'Role:', data.role, 'Admin:', data.is_admin);
         setUser({
           id: data.id,
           name: data.name,
@@ -59,18 +68,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isTeamManager: data.is_team_manager,
           isBrokerAdmin: data.is_broker_admin,
         });
+        console.log('✅ User state set successfully');
       } else {
         // Profile not found for authenticated user
-        console.error('No profile found for user:', authUser.id);
-        console.error('This means the user exists in auth.users but not in profiles table');
-        console.error('Please run verify-and-fix-user.sql in Supabase SQL Editor');
+        console.error('❌ No profile data returned for user:', authUser.id);
+        console.error('🔴 CRITICAL: User exists in auth.users but not in profiles table');
+        console.error('📝 Action needed: Run verify-and-fix-user.sql in Supabase SQL Editor');
+        console.error('🔗 URL: https://supabase.com/dashboard/project/xuwhawmzzfotzhxycxpm/editor');
+        
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
         setDatabaseError(true);
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('❌ Exception in fetchUserProfile:', error);
       setUser(null);
       setSession(null);
     }
