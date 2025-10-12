@@ -18,6 +18,7 @@ const AppContent: React.FC = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isStableState, setIsStableState] = useState(true);
+  const [hadUserBefore, setHadUserBefore] = useState(false);
   const userStabilityTimeout = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -29,6 +30,11 @@ const AppContent: React.FC = () => {
 
   // Debounce user state changes to prevent flickering during session switches
   useEffect(() => {
+    // Track if we've had a user before
+    if (user) {
+      setHadUserBefore(true);
+    }
+
     // Clear any existing timeout
     if (userStabilityTimeout.current) {
       clearTimeout(userStabilityTimeout.current);
