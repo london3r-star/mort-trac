@@ -118,6 +118,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
     const submissionData = {
       ...(application ? { id: application.id } : {}),
       ...formData,
+      ...((!application && temporaryClientPassword) ? { clientPassword: temporaryClientPassword } : {}),
     };
 
     onSave(submissionData);
