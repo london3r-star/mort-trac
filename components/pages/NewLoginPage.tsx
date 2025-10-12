@@ -32,43 +32,7 @@ const NewLoginPage: React.FC = () => {
     setLoginLoading(false);
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegError('');
-    setRegSuccess('');
-
-    if (regPassword !== regConfirmPassword) {
-      setRegError("Passwords do not match.");
-      return;
-    }
-
-    if (regPassword.length < 6) {
-      setRegError("Password must be at least 6 characters.");
-      return;
-    }
-
-    setRegLoading(true);
-
-    const { error } = await signUp(regEmail, regPassword, regName, regRole);
-    
-    if (error) {
-      setRegError(error.message || 'Registration failed. Please try again.');
-    } else {
-      setRegSuccess('Registration successful! Please check your email to confirm your account, then sign in.');
-      // Clear form
-      setRegName('');
-      setRegEmail('');
-      setRegPassword('');
-      setRegConfirmPassword('');
-      // Switch to login after 3 seconds
-      setTimeout(() => {
-        setIsRegistering(false);
-        setRegSuccess('');
-      }, 3000);
-    }
-    
-    setRegLoading(false);
-  };
+  // Registration removed - users are created by administrators
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
