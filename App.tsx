@@ -45,7 +45,9 @@ const AppContent: React.FC = () => {
     }
   }, [user]);
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
+    if (!user) return;
+    
     setDataLoading(true);
     try {
       // Fetch all users
@@ -55,7 +57,7 @@ const AppContent: React.FC = () => {
       }
 
       // Fetch applications based on user role
-      if (user?.role === 'CLIENT') {
+      if (user.role === 'CLIENT') {
         const { data: clientApp } = await getApplicationsByClientId(user.id);
         setClientApplication(clientApp);
       } else {
@@ -69,7 +71,7 @@ const AppContent: React.FC = () => {
     } finally {
       setDataLoading(false);
     }
-  };
+  }, [user]);
 
   const handleUpdateApplications = (updatedApplications: Application[]) => {
     setApplications(updatedApplications);
