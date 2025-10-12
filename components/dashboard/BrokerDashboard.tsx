@@ -272,11 +272,22 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     }
   };
 
-  const handleSaveNotes = (appId: string, newNotes: string) => {
-    const updatedApplications = applications.map(app => 
-      app.id === appId ? { ...app, notes: newNotes } : app
-    );
-    onUpdateApplications(updatedApplications);
+  const handleSaveNotes = async (appId: string, newNotes: string) => {
+    const { updateApplication } = await import('../../services/supabaseService');
+    const { data, error } = await updateApplication(appId, { notes: newNotes });
+    
+    if (error) {
+      console.error('Error updating notes:', error);
+      alert('Failed to update notes. Please try again.');
+      return;
+    }
+    
+    if (data) {
+      const updatedApplications = applications.map(app => 
+        app.id === appId ? data : app
+      );
+      onUpdateApplications(updatedApplications);
+    }
     setNotesModalApp(null);
   };
   
