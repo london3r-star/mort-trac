@@ -29,7 +29,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist or other database error, log and continue
+        console.warn('Database query failed (tables may not be set up yet):', error.message);
+        // Sign out the user since we can't fetch their profile
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        return;
+      }
 
       if (data) {
         setUser({
@@ -44,10 +52,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isTeamManager: data.is_team_manager,
           isBrokerAdmin: data.is_broker_admin,
         });
+      } else {
+        // Profile not found for authenticated user
+        console.warn('No profile found for user:', authUser.id);
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
       setUser(null);
+      setSession(null);
     }
   };
 
