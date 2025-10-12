@@ -27,6 +27,28 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  // Debounce user state changes to prevent flickering during session switches
+  useEffect(() => {
+    // Clear any existing timeout
+    if (userStabilityTimeout.current) {
+      clearTimeout(userStabilityTimeout.current);
+    }
+
+    // If user changes, mark as unstable temporarily
+    setIsStableState(false);
+
+    // Set a short timeout to mark state as stable
+    userStabilityTimeout.current = setTimeout(() => {
+      setIsStableState(true);
+    }, 300);
+
+    return () => {
+      if (userStabilityTimeout.current) {
+        clearTimeout(userStabilityTimeout.current);
+      }
+    };
+  }, [user]);
+
   // Fetch data function
   const fetchData = React.useCallback(async () => {
     if (!user) {
