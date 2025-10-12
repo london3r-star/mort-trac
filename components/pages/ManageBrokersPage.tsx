@@ -18,12 +18,6 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
   const [editingBroker, setEditingBroker] = useState<User | null>(null);
   const [deletingBroker, setDeletingBroker] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [passwordModal, setPasswordModal] = useState<{ isOpen: boolean; password: string; userName: string; userEmail: string }>({
-    isOpen: false,
-    password: '',
-    userName: '',
-    userEmail: '',
-  });
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
 
 
