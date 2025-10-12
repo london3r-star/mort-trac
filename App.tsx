@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import NewLoginPage from './components/pages/NewLoginPage';
+import SecureLoginPage from './components/pages/SecureLoginPage';
 import DashboardPage from './components/pages/DashboardPage';
 import ResetPasswordPage from './components/pages/ResetPasswordPage';
 import ErrorBoundary from './components/ErrorBoundary';
