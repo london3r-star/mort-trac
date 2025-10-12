@@ -43,7 +43,7 @@ const AppContent: React.FC = () => {
     } else {
       setDataLoading(false);
     }
-  }, [user]);
+  }, [user, fetchData]);
 
   const fetchData = React.useCallback(async () => {
     if (!user) return;
