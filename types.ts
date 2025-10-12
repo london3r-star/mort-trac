@@ -57,6 +57,7 @@ export interface User {
   isAdmin?: boolean;
   isTeamManager?: boolean;
   isBrokerAdmin?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export const STATUS_ORDER: ApplicationStatus[] = [
