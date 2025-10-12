@@ -89,7 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    console.log('🔄 AuthContext: Initializing...');
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📥 Initial session:', session?.user?.email || 'No session');
       setSession(session);
       if (session?.user) {
         fetchUserProfile(session.user).finally(() => setLoading(false));
@@ -97,16 +100,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       }
     }).catch((error) => {
-      console.error('Error getting session:', error);
+      console.error('❌ Error getting session:', error);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔔 Auth state changed:', event, session?.user?.email || 'No user');
+      
       (async () => {
         setSession(session);
         if (session?.user) {
+          console.log('👤 User authenticated, fetching profile...');
           await fetchUserProfile(session.user);
         } else {
+          console.log('🚫 No authenticated user');
           setUser(null);
         }
         setLoading(false);
