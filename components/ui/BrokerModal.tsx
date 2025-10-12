@@ -4,7 +4,7 @@ import { User } from '../../types';
 interface BrokerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => void;
+  onSave: (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; password?: string; }) => void;
   existingUsers: User[];
   brokerToEdit?: User | null;
   loggedInUser: User;
@@ -17,7 +17,13 @@ const BrokerModal: React.FC<BrokerModalProps> = ({ isOpen, onClose, onSave, exis
   const [companyName, setCompanyName] = useState('');
   const [isTeamManager, setIsTeamManager] = useState(false);
   const [isBrokerAdmin, setIsBrokerAdmin] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
   const [error, setError] = useState('');
+
+  // Generate random password
+  const generatePassword = () => {
+    return `Temp${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
+  };
 
   useEffect(() => {
     if (isOpen) {
