@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { User, Role, Application, STATUS_DISPLAY_NAMES } from '../../types';
 import BrokerModal from '../ui/BrokerModal';
 import ConfirmModal from '../ui/ConfirmModal';
+import PasswordModal from '../ui/PasswordModal';
 
 interface ManageBrokersPageProps {
   user: User;
