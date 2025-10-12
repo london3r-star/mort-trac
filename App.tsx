@@ -4,11 +4,12 @@ import NewLoginPage from './components/pages/NewLoginPage';
 import DashboardPage from './components/pages/DashboardPage';
 import ResetPasswordPage from './components/pages/ResetPasswordPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import DatabaseSetupNotice from './components/DatabaseSetupNotice';
 import { User, Application } from './types';
 import { getAllUsers, getAllApplications, getApplicationsByClientId, subscribeToApplications, subscribeToProfiles } from './services/supabaseService';
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, databaseError } = useAuth();
   const [isResetPassword, setIsResetPassword] = React.useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
