@@ -38,7 +38,7 @@ const DatabaseSetupNotice: React.FC = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm text-yellow-700">
-                The database tables haven't been created yet. Please follow the quick setup guide below.
+                <strong>Login Issue?</strong> If you can't login after setting up, the admin user profile may be missing. Run <code className="bg-yellow-100 px-1 rounded">verify-and-fix-user.sql</code> to fix it.
               </p>
             </div>
           </div>
