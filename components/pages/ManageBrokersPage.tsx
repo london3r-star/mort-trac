@@ -31,14 +31,31 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     setIsModalOpen(true);
   };
 
-  const handleSaveBroker = (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
+  const handleSaveBroker = async (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
     if (brokerData.id) { // Editing
+        const { updateUserProfile } = await import('../../services/supabaseService');
+        const { error } = await updateUserProfile(brokerData.id, {
+          name: brokerData.name,
+          contactNumber: brokerData.contactNumber,
+          companyName: brokerData.companyName,
+          isTeamManager: brokerData.isTeamManager,
+          isBrokerAdmin: brokerData.isBrokerAdmin,
+        });
+        
+        if (error) {
+          console.error('Error updating broker:', error);
+          alert('Failed to update broker. Please try again.');
+          return;
+        }
+        
         setUsers(users.map(u => 
             u.id === brokerData.id 
             ? { ...u, name: brokerData.name, contactNumber: brokerData.contactNumber, companyName: brokerData.companyName, isTeamManager: brokerData.isTeamManager, isBrokerAdmin: brokerData.isBrokerAdmin } 
             : u
         ));
     } else { // Creating
+        // Note: Creating new brokers requires Supabase auth signup
+        // For now, we'll just update the local state
         const newBroker: User = {
             id: `broker-${new Date().getTime()}`,
             name: brokerData.name,
