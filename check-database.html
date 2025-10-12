@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Check</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Checking Database...</h1>
+    <div id="result"></div>
+    <script>
+        const supabaseUrl = 'https://aurcxyejbsjpjocwrxnv.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cmN4eWVqYnNqcGpvY3dyeG52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxNzIzNDMsImV4cCI6MjA3NTc0ODM0M30.sx0dSu-tWDuXf-mXjc6XR3FumXBrcdzNoTft2dW8o6E';
+        
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        
+        async function checkDatabase() {
+            const result = document.getElementById('result');
+            
+            // Check profiles table
+            const { data, error } = await supabase.from('profiles').select('*').limit(1);
+            
+            if (error) {
+                result.innerHTML = '<h2>Database NOT Set Up</h2><pre>' + JSON.stringify(error, null, 2) + '</pre>';
+            } else {
+                result.innerHTML = '<h2>Database IS Set Up</h2><p>Tables exist. Found ' + (data?.length || 0) + ' profiles.</p>';
+            }
+        }
+        
+        checkDatabase();
+    </script>
+</body>
+</html>
