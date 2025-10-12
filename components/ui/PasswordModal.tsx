@@ -11,7 +11,14 @@ interface PasswordModalProps {
 const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, password, userName, userEmail }) => {
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen) return null;
+  console.log('🔵 PasswordModal render:', { isOpen, userName, userEmail, hasPassword: !!password });
+
+  if (!isOpen) {
+    console.log('❌ PasswordModal not showing - isOpen is false');
+    return null;
+  }
+  
+  console.log('✅ PasswordModal should be visible');
 
   const handleCopy = () => {
     navigator.clipboard.writeText(password);
