@@ -38,7 +38,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     setIsModalOpen(true);
   };
 
-  const handleSaveBroker = async (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; }) => {
+  const handleSaveBroker = async (brokerData: { id?: string; name: string; email: string; contactNumber: string; companyName: string; isTeamManager: boolean; isBrokerAdmin: boolean; password?: string; }) => {
     if (brokerData.id) { // Editing
         const { updateUserProfile } = await import('../../services/supabaseService');
         const { error } = await updateUserProfile(brokerData.id, {
