@@ -91,7 +91,9 @@ export const createBroker = async (
   isBrokerAdmin?: boolean
 ) => {
   try {
-    // Create auth user with auto-confirmation
+    console.log('🔵 Starting broker creation for:', email);
+    
+    // Step 1: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -99,52 +101,74 @@ export const createBroker = async (
         data: {
           name,
           role: 'BROKER',
-          company_name: companyName,
-          is_team_manager: isTeamManager || false,
-          is_broker_admin: isBrokerAdmin || false,
         },
         emailRedirectTo: undefined,
       }
     });
 
-    console.log('Auth signup response:', { authData, authError });
+    console.log('🔵 Auth signup response:', { authData, authError });
 
     if (authError) {
-      console.error('Auth error:', authError);
+      console.error('❌ Auth error:', authError);
       return { data: null, error: authError };
     }
 
     if (!authData.user) {
-      console.error('No user returned from signup');
+      console.error('❌ No user returned from signup');
       return { data: null, error: new Error('No user returned from signup') };
     }
 
-    // Wait a moment for trigger to create profile
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('✅ Auth user created:', authData.user.id);
 
-    // Update profile with additional data and set password change requirement
-    const { data, error } = await supabase
+    // Step 2: Wait for trigger to potentially create profile
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Step 3: Insert or update profile directly (don't rely on trigger)
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: authData.user.id,
+        name: name,
+        email: email,
+        role: 'BROKER',
         contact_number: contactNumber,
+        company_name: companyName,
+        is_admin: false,
+        is_team_manager: isTeamManager || false,
+        is_broker_admin: isBrokerAdmin || false,
         created_by: createdBy,
         must_change_password: true,
+      }, {
+        onConflict: 'id'
       })
-      .eq('id', authData.user.id)
       .select()
       .single();
 
-    console.log('Profile update response:', { data, error });
+    console.log('🔵 Profile upsert response:', { profileData, profileError });
 
-    if (error) {
-      console.error('Profile update error:', error);
-      // Return the user data even if profile update fails
-      return { data: authData.user, error: null };
+    if (profileError) {
+      console.error('❌ Profile error:', profileError);
+      return { data: null, error: profileError };
     }
 
-    return { data: data || authData.user, error: null };
+    console.log('✅ Broker created successfully:', profileData);
+
+    return { 
+      data: {
+        id: profileData.id,
+        name: profileData.name,
+        email: profileData.email,
+        role: profileData.role,
+        contactNumber: profileData.contact_number,
+        companyName: profileData.company_name,
+        isAdmin: profileData.is_admin,
+        isTeamManager: profileData.is_team_manager,
+        isBrokerAdmin: profileData.is_broker_admin,
+      }, 
+      error: null 
+    };
   } catch (err) {
-    console.error('Caught error in createBroker:', err);
+    console.error('❌ Caught error in createBroker:', err);
     return { data: null, error: err as Error };
   }
 };
