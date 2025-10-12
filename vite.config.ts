@@ -8,6 +8,16 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        allowedHosts: [
+          'repo-database-link.preview.emergentagent.com',
+          '.preview.emergentagent.com',
+          'localhost',
+          '0.0.0.0'
+        ],
+        hmr: {
+          clientPort: 443,
+          protocol: 'wss'
+        }
       },
       plugins: [react()],
       define: {
