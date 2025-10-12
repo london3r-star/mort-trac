@@ -255,8 +255,17 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     }
   };
 
-  const handleDeleteApplication = () => {
+  const handleDeleteApplication = async () => {
     if (deletingApplicationId) {
+      const { deleteApplication } = await import('../../services/supabaseService');
+      const { error } = await deleteApplication(deletingApplicationId);
+      
+      if (error) {
+        console.error('Error deleting application:', error);
+        alert('Failed to delete application. Please try again.');
+        return;
+      }
+      
       const updatedApplications = applications.filter(app => app.id !== deletingApplicationId);
       onUpdateApplications(updatedApplications);
       setDeletingApplicationId(null);
