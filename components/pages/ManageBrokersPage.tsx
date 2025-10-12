@@ -345,6 +345,14 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         message={`Are you sure you want to remove ${deletingBroker?.name}? This will permanently delete their account.`}
       />
 
+      <PasswordModal
+        isOpen={passwordModal.isOpen}
+        onClose={() => setPasswordModal({ ...passwordModal, isOpen: false })}
+        password={passwordModal.password}
+        userName={passwordModal.userName}
+        userEmail={passwordModal.userEmail}
+      />
+
     </div>
   );
 };
