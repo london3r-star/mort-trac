@@ -159,7 +159,7 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     setEditingApplication(null);
   };
 
-  const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => {
+  const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string; clientPassword?: string }) => {
     if (appData.id) { // Editing existing application
       const { updateApplication } = await import('../../services/supabaseService');
       const { data, error } = await updateApplication(appData.id, appData);
@@ -182,12 +182,17 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
       let clientId: string;
       
       if (!clientUser) {
-        // Create a new client profile in Supabase (no auth user needed)
+        // Ensure we have a password for new client
+        const clientPassword = appData.clientPassword || `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
+        
+        // Create a new client profile in Supabase with auth user
         const { data: newClientData, error: clientError } = await createClientProfile(
           appData.clientName,
           appData.clientEmail,
+          clientPassword,
           appData.clientContactNumber,
-          appData.clientCurrentAddress
+          appData.clientCurrentAddress,
+          displayUser.id
         );
         
         if (clientError || !newClientData) {
@@ -198,11 +203,11 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
         
         const newClient: User = {
           id: newClientData.id,
-          name: newClientData.name,
-          email: newClientData.email,
+          name: newClientData.name || appData.clientName,
+          email: newClientData.email || appData.clientEmail,
           role: Role.CLIENT,
-          contactNumber: newClientData.contact_number,
-          currentAddress: newClientData.current_address,
+          contactNumber: newClientData.contact_number || appData.clientContactNumber,
+          currentAddress: newClientData.current_address || appData.clientCurrentAddress,
         };
         setUsers([...users, newClient]);
         clientId = newClientData.id;
