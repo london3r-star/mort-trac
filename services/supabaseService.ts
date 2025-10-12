@@ -93,6 +93,10 @@ export const createBroker = async (
   try {
     console.log('🔵 Starting broker creation for:', email);
     
+    // Save current session to restore later
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    console.log('🔵 Saved current session');
+    
     // Step 1: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -119,6 +123,19 @@ export const createBroker = async (
     }
 
     console.log('✅ Auth user created:', authData.user.id);
+    
+    // Sign out the new user immediately (signUp auto-logs them in)
+    await supabase.auth.signOut();
+    console.log('🔵 Signed out new user');
+    
+    // Restore admin session
+    if (currentSession) {
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+      });
+      console.log('🔵 Restored admin session');
+    }
 
     // Step 2: Wait longer for auth user to be fully committed
     await new Promise(resolve => setTimeout(resolve, 2000));
