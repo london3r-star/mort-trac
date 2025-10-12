@@ -126,6 +126,11 @@ const AppContent: React.FC = () => {
     return <SecureLoginPage />;
   }
 
+  // Check if user needs to change password
+  if (user.mustChangePassword) {
+    return <ChangePasswordPage user={user} onPasswordChanged={fetchData} />;
+  }
+
   return (
     <div className="min-h-screen">
       <DashboardPage 
