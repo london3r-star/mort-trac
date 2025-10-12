@@ -339,22 +339,6 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         message={`Are you sure you want to remove ${deletingBroker?.name}? This will permanently delete their account.`}
       />
 
-      <PasswordModal
-        isOpen={passwordModal.isOpen}
-        onClose={async () => {
-          setPasswordModal({ ...passwordModal, isOpen: false });
-          // Refresh users list when modal closes to ensure we have latest data
-          const { getAllUsers } = await import('../../services/supabaseService');
-          const { data: updatedUsers } = await getAllUsers();
-          if (updatedUsers) {
-            setUsers(updatedUsers);
-          }
-        }}
-        password={passwordModal.password}
-        userName={passwordModal.userName}
-        userEmail={passwordModal.userEmail}
-      />
-
     </div>
   );
 };
