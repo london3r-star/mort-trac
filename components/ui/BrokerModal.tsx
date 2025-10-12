@@ -34,6 +34,7 @@ const BrokerModal: React.FC<BrokerModalProps> = ({ isOpen, onClose, onSave, exis
             setCompanyName(brokerToEdit.companyName || '');
             setIsTeamManager(!!brokerToEdit.isTeamManager);
             setIsBrokerAdmin(!!brokerToEdit.isBrokerAdmin);
+            setTemporaryPassword(''); // No password for editing
         } else {
             setName('');
             setEmail('');
@@ -45,6 +46,7 @@ const BrokerModal: React.FC<BrokerModalProps> = ({ isOpen, onClose, onSave, exis
             }
             setIsTeamManager(false);
             setIsBrokerAdmin(false);
+            setTemporaryPassword(generatePassword()); // Auto-generate for new broker
         }
         setError('');
     }
