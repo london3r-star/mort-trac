@@ -39,6 +39,29 @@ export const createUserProfile = async (
   return { data, error };
 };
 
+// Create a simple client profile without auth user (for application clients)
+export const createClientProfile = async (
+  name: string,
+  email: string,
+  contactNumber?: string,
+  currentAddress?: string
+) => {
+  // Generate a UUID for the client
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      name,
+      email,
+      role: 'CLIENT',
+      contact_number: contactNumber,
+      current_address: currentAddress,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+};
+
 export const getUserProfile = async (userId: string): Promise<{ data: User | null; error: any }> => {
   const { data, error } = await supabase
     .from('profiles')
