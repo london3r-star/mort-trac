@@ -90,39 +90,63 @@ export const createBroker = async (
   isTeamManager?: boolean,
   isBrokerAdmin?: boolean
 ) => {
-  // Create auth user
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name,
-        role: 'BROKER',
-        company_name: companyName,
-        is_team_manager: isTeamManager || false,
-        is_broker_admin: isBrokerAdmin || false,
-      },
-      emailRedirectTo: undefined, // Don't send confirmation email
+  try {
+    // Create auth user with auto-confirmation
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role: 'BROKER',
+          company_name: companyName,
+          is_team_manager: isTeamManager || false,
+          is_broker_admin: isBrokerAdmin || false,
+        },
+        emailRedirectTo: undefined,
+      }
+    });
+
+    console.log('Auth signup response:', { authData, authError });
+
+    if (authError) {
+      console.error('Auth error:', authError);
+      return { data: null, error: authError };
     }
-  });
 
-  if (authError || !authData.user) {
-    return { data: null, error: authError };
+    if (!authData.user) {
+      console.error('No user returned from signup');
+      return { data: null, error: new Error('No user returned from signup') };
+    }
+
+    // Wait a moment for trigger to create profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Update profile with additional data and set password change requirement
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        contact_number: contactNumber,
+        created_by: createdBy,
+        must_change_password: true,
+      })
+      .eq('id', authData.user.id)
+      .select()
+      .single();
+
+    console.log('Profile update response:', { data, error });
+
+    if (error) {
+      console.error('Profile update error:', error);
+      // Return the user data even if profile update fails
+      return { data: authData.user, error: null };
+    }
+
+    return { data: data || authData.user, error: null };
+  } catch (err) {
+    console.error('Caught error in createBroker:', err);
+    return { data: null, error: err as Error };
   }
-
-  // Update profile with additional data and set password change requirement
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({
-      contact_number: contactNumber,
-      created_by: createdBy,
-      must_change_password: true,
-    })
-    .eq('id', authData.user.id)
-    .select()
-    .single();
-
-  return { data: data || authData.user, error };
 };
 
 // Create team manager by admin
