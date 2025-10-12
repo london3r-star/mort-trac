@@ -121,16 +121,15 @@ const NewLoginPage: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
           <h2 className="mt-6 text-3xl font-extrabold text-brand-dark dark:text-white">
-            {isRegistering ? 'Create Your Account' : 'Mortgage Tracker Pro'}
+            Mortgage Tracker Pro
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            {isRegistering ? 'Register to access your dashboard' : 'Sign in to your account'}
+            Sign in to your account
           </p>
         </div>
 
-        {isRegistering ? (
-          // Registration Form
-          <form className="mt-8 space-y-6" onSubmit={handleRegisterSubmit}>
+        {/* Login Form */}
+        <form className="mt-8 space-y-6" onSubmit={handleLoginSubmit}>
             <div className="rounded-md shadow-sm space-y-3">
               <div>
                 <input
