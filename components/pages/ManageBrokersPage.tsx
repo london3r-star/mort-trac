@@ -72,7 +72,8 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         
         if (error) {
           console.error('Error creating broker:', error);
-          alert('Failed to create broker. Please try again.');
+          console.error('Error details:', JSON.stringify(error, null, 2));
+          alert(`Failed to create broker: ${error.message || 'Please try again.'}`);
           return;
         }
         
