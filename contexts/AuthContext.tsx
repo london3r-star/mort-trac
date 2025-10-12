@@ -61,10 +61,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         // Profile not found for authenticated user
-        console.warn('No profile found for user:', authUser.id);
+        console.error('No profile found for user:', authUser.id);
+        console.error('This means the user exists in auth.users but not in profiles table');
+        console.error('Please run verify-and-fix-user.sql in Supabase SQL Editor');
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
+        setDatabaseError(true);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
