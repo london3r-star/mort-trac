@@ -144,6 +144,31 @@ const BrokerModal: React.FC<BrokerModalProps> = ({ isOpen, onClose, onSave, exis
                     />
                 </div>
 
+                {!brokerToEdit && (
+                  <div>
+                    <label htmlFor="temporaryPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Temporary Broker Password</label>
+                    <div className="mt-1 flex rounded-md shadow-sm">
+                      <input
+                        type="text"
+                        id="temporaryPassword"
+                        value={temporaryPassword}
+                        readOnly
+                        className="block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-l-md py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm bg-yellow-50 dark:bg-yellow-900/20 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setTemporaryPassword(generatePassword())}
+                        className="inline-flex items-center px-3 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm hover:bg-gray-100 dark:hover:bg-gray-500"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Share this password with the broker. They must change it on first login.</p>
+                  </div>
+                )}
+
                 {loggedInUser.isAdmin && !brokerToEdit?.isAdmin && (
                   <div className="flex items-center pt-2">
                     <input
