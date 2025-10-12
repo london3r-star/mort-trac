@@ -63,8 +63,8 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     } else { // Creating new broker
         const { createBroker } = await import('../../services/supabaseService');
         
-        // Generate temporary password
-        const tempPassword = `Temp${Math.random().toString(36).slice(2, 10)}!`;
+        // Use password from form
+        const tempPassword = brokerData.password || `Temp${Math.random().toString(36).slice(2, 10)}!`;
         
         const { data, error } = await createBroker(
           brokerData.name,
@@ -100,23 +100,6 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
           };
           setUsers([...users, newBroker]);
           console.log('✅ Added to users list, new count:', users.length + 1);
-          
-          // Show temporary password modal
-          console.log('🔵 Setting password modal state:', {
-            isOpen: true,
-            password: tempPassword,
-            userName: brokerData.name,
-            userEmail: brokerData.email,
-          });
-          
-          setPasswordModal({
-            isOpen: true,
-            password: tempPassword,
-            userName: brokerData.name,
-            userEmail: brokerData.email,
-          });
-          
-          console.log('✅ Password modal state set');
         }
     }
     setIsModalOpen(false);
