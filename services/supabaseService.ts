@@ -120,31 +120,65 @@ export const createBroker = async (
 
     console.log('✅ Auth user created:', authData.user.id);
 
-    // Step 2: Wait for trigger to potentially create profile
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Step 2: Wait longer for auth user to be fully committed
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Step 3: Insert or update profile directly (don't rely on trigger)
-    const { data: profileData, error: profileError } = await supabase
+    // Step 3: Check if trigger already created the profile
+    const { data: existingProfile } = await supabase
       .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        name: name,
-        email: email,
-        role: 'BROKER',
-        contact_number: contactNumber,
-        company_name: companyName,
-        is_admin: false,
-        is_team_manager: isTeamManager || false,
-        is_broker_admin: isBrokerAdmin || false,
-        created_by: createdBy,
-        must_change_password: true,
-      }, {
-        onConflict: 'id'
-      })
-      .select()
-      .single();
+      .select('*')
+      .eq('id', authData.user.id)
+      .maybeSingle();
 
-    console.log('🔵 Profile upsert response:', { profileData, profileError });
+    console.log('🔵 Existing profile check:', existingProfile);
+
+    let profileData;
+    let profileError;
+
+    if (existingProfile) {
+      // Update existing profile
+      const result = await supabase
+        .from('profiles')
+        .update({
+          name: name,
+          contact_number: contactNumber,
+          company_name: companyName,
+          is_team_manager: isTeamManager || false,
+          is_broker_admin: isBrokerAdmin || false,
+          created_by: createdBy,
+          must_change_password: true,
+        })
+        .eq('id', authData.user.id)
+        .select()
+        .single();
+      
+      profileData = result.data;
+      profileError = result.error;
+    } else {
+      // Insert new profile
+      const result = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name: name,
+          email: email,
+          role: 'BROKER',
+          contact_number: contactNumber,
+          company_name: companyName,
+          is_admin: false,
+          is_team_manager: isTeamManager || false,
+          is_broker_admin: isBrokerAdmin || false,
+          created_by: createdBy,
+          must_change_password: true,
+        })
+        .select()
+        .single();
+      
+      profileData = result.data;
+      profileError = result.error;
+    }
+
+    console.log('🔵 Profile operation response:', { profileData, profileError });
 
     if (profileError) {
       console.error('❌ Profile error:', profileError);
