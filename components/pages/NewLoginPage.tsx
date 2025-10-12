@@ -87,7 +87,6 @@ const NewLoginPage: React.FC = () => {
     setForgotSuccess('');
     setForgotLoading(true);
 
-    const { resetPassword } = useAuth();
     const { error } = await resetPassword(forgotEmail);
 
     if (error) {
