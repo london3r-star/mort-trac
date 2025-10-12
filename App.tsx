@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import SecureLoginPage from './components/pages/SecureLoginPage';
 import DashboardPage from './components/pages/DashboardPage';
 import ResetPasswordPage from './components/pages/ResetPasswordPage';
+import ChangePasswordPage from './components/pages/ChangePasswordPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import DatabaseSetupNotice from './components/DatabaseSetupNotice';
 import { User, Application } from './types';
