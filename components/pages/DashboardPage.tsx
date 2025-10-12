@@ -28,8 +28,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   theme,
   toggleTheme,
 }) => {
-  const [isManagingBrokers, setIsManagingBrokers] = useState(false);
+  // Persist navigation state to prevent reset during session changes
+  const [isManagingBrokers, setIsManagingBrokers] = useState(() => {
+    return sessionStorage.getItem('isManagingBrokers') === 'true';
+  });
   const [viewingBroker, setViewingBroker] = useState<User | null>(null);
+  
+  // Update sessionStorage when isManagingBrokers changes
+  React.useEffect(() => {
+    sessionStorage.setItem('isManagingBrokers', isManagingBrokers.toString());
+  }, [isManagingBrokers]);
 
   const handleViewBrokerDashboard = (broker: User) => {
     setViewingBroker(broker);
