@@ -140,7 +140,10 @@ const AppContent: React.FC = () => {
     return <DatabaseSetupNotice />;
   }
 
-  if (loading || !isStableState || (user && dataLoading)) {
+  // Show loading only on initial load, not during brief session transitions
+  const shouldShowLoading = loading || (user && dataLoading) || (!isStableState && !hadUserBefore);
+  
+  if (shouldShowLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-brand-primary">
         <div className="text-white text-xl">Loading...</div>
