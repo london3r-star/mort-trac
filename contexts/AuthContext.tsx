@@ -67,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isAdmin: data.is_admin,
           isTeamManager: data.is_team_manager,
           isBrokerAdmin: data.is_broker_admin,
+          mustChangePassword: data.must_change_password,
         });
         console.log('✅ User state set successfully');
       } else {
