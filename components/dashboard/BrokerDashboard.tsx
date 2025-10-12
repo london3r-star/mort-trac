@@ -177,21 +177,17 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
         onUpdateApplications(updatedApplications);
       }
     } else { // Creating new application
-      const { createUserProfile, createApplication } = await import('../../services/supabaseService');
+      const { createClientProfile, createApplication } = await import('../../services/supabaseService');
       const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
       let clientId: string;
       
       if (!clientUser) {
-        // Create a new client user profile in Supabase
-        const { data: newClientData, error: clientError } = await createUserProfile(
-          `temp-${new Date().getTime()}`,
+        // Create a new client profile in Supabase (no auth user needed)
+        const { data: newClientData, error: clientError } = await createClientProfile(
           appData.clientName,
           appData.clientEmail,
-          Role.CLIENT,
-          {
-            contactNumber: appData.clientContactNumber,
-            currentAddress: appData.clientCurrentAddress,
-          }
+          appData.clientContactNumber,
+          appData.clientCurrentAddress
         );
         
         if (clientError || !newClientData) {
@@ -205,8 +201,8 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
           name: newClientData.name,
           email: newClientData.email,
           role: Role.CLIENT,
-          contactNumber: appData.clientContactNumber,
-          currentAddress: appData.clientCurrentAddress,
+          contactNumber: newClientData.contact_number,
+          currentAddress: newClientData.current_address,
         };
         setUsers([...users, newClient]);
         clientId = newClientData.id;
