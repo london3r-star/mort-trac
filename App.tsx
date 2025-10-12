@@ -122,7 +122,7 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
-    return <NewLoginPage />;
+    return <SecureLoginPage />;
   }
 
   return (
