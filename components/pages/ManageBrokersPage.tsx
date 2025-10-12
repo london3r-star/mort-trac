@@ -85,12 +85,18 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         }
         
         if (data) {
-          // Refresh users list from database
-          const { getAllUsers } = await import('../../services/supabaseService');
-          const { data: updatedUsers } = await getAllUsers();
-          if (updatedUsers) {
-            setUsers(updatedUsers);
-          }
+          // Add broker to list immediately (optimistic update)
+          const newBroker: User = {
+            id: data.id,
+            name: brokerData.name,
+            email: brokerData.email,
+            contactNumber: brokerData.contactNumber,
+            companyName: brokerData.companyName,
+            role: Role.BROKER,
+            isTeamManager: brokerData.isTeamManager,
+            isBrokerAdmin: brokerData.isBrokerAdmin,
+          };
+          setUsers([...users, newBroker]);
           
           // Show temporary password modal
           setPasswordModal({
@@ -99,6 +105,15 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
             userName: brokerData.name,
             userEmail: brokerData.email,
           });
+          
+          // Refresh from database in background to ensure consistency
+          setTimeout(async () => {
+            const { getAllUsers } = await import('../../services/supabaseService');
+            const { data: updatedUsers } = await getAllUsers();
+            if (updatedUsers) {
+              setUsers(updatedUsers);
+            }
+          }, 2000);
         }
     }
     setIsModalOpen(false);
