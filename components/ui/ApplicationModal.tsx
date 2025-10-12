@@ -4,7 +4,7 @@ import { Application, ApplicationStatus, STATUS_ORDER, STATUS_DISPLAY_NAMES, Sol
 interface ApplicationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (application: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string }) => void;
+  onSave: (application: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string; clientPassword?: string }) => void;
   application: Application | null;
 }
 
