@@ -12,16 +12,6 @@ const NewLoginPage: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Register State
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [regRole, setRegRole] = useState<Role>(Role.CLIENT);
-  const [regError, setRegError] = useState('');
-  const [regLoading, setRegLoading] = useState(false);
-  const [regSuccess, setRegSuccess] = useState('');
-
   // Forgot Password State
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotError, setForgotError] = useState('');
