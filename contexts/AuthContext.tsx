@@ -34,6 +34,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         // If table doesn't exist or other database error, log and continue
         console.warn('Database query failed (tables may not be set up yet):', error.message);
+        // Check if it's a table not found error
+        if (error.message.includes('relation "public.profiles" does not exist') || 
+            error.message.includes('does not exist')) {
+          setDatabaseError(true);
+        }
         // Sign out the user since we can't fetch their profile
         await supabase.auth.signOut();
         setUser(null);
