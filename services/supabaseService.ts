@@ -43,23 +43,96 @@ export const createUserProfile = async (
 export const createClientProfile = async (
   name: string,
   email: string,
+  password: string,
   contactNumber?: string,
-  currentAddress?: string
+  currentAddress?: string,
+  createdBy?: string
 ) => {
-  // Generate a UUID for the client
+  // First create auth user
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        name,
+        role: 'CLIENT',
+      }
+    }
+  });
+
+  if (authError || !authData.user) {
+    return { data: null, error: authError };
+  }
+
+  // Profile will be auto-created by trigger, but update it with additional data
   const { data, error } = await supabase
     .from('profiles')
-    .insert({
-      name,
-      email,
-      role: 'CLIENT',
+    .update({
       contact_number: contactNumber,
       current_address: currentAddress,
+      created_by: createdBy,
     })
+    .eq('id', authData.user.id)
     .select()
     .single();
 
-  return { data, error };
+  return { data: data || authData.user, error };
+};
+
+// Create broker by team manager
+export const createBroker = async (
+  name: string,
+  email: string,
+  password: string,
+  companyName: string,
+  createdBy: string,
+  contactNumber?: string,
+  isTeamManager?: boolean,
+  isBrokerAdmin?: boolean
+) => {
+  // Create auth user
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        name,
+        role: 'BROKER',
+        company_name: companyName,
+        is_team_manager: isTeamManager || false,
+        is_broker_admin: isBrokerAdmin || false,
+      }
+    }
+  });
+
+  if (authError || !authData.user) {
+    return { data: null, error: authError };
+  }
+
+  // Update profile with additional data
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      contact_number: contactNumber,
+      created_by: createdBy,
+    })
+    .eq('id', authData.user.id)
+    .select()
+    .single();
+
+  return { data: data || authData.user, error };
+};
+
+// Create team manager by admin
+export const createTeamManager = async (
+  name: string,
+  email: string,
+  password: string,
+  companyName: string,
+  createdBy: string,
+  contactNumber?: string
+) => {
+  return createBroker(name, email, password, companyName, createdBy, contactNumber, true, false);
 };
 
 export const getUserProfile = async (userId: string): Promise<{ data: User | null; error: any }> => {
