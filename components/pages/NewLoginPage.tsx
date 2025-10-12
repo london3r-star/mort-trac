@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Role } from '../../types';
 
 const NewLoginPage: React.FC = () => {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   
