@@ -177,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         user,
         loading,
+        databaseError,
         signUp,
         signIn,
         signOut,
