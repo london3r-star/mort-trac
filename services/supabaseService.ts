@@ -39,7 +39,8 @@ export const createUserProfile = async (
   return { data, error };
 };
 
-// Create a simple client profile without auth user (for application clients)
+// Replace your createClientProfile function in supabaseService.ts with this improved version:
+
 export const createClientProfile = async (
   name: string,
   email: string,
@@ -54,6 +55,9 @@ export const createClientProfile = async (
     // Save current session to restore later
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     console.log('🔵 Saved current session');
+    
+    // Store the current user ID to verify later
+    const currentUserId = currentSession?.user?.id;
     
     // First create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -76,18 +80,33 @@ export const createClientProfile = async (
 
     console.log('✅ Client auth user created:', authData.user.id);
     
-    // IMPROVED: Restore session immediately without signOut
-    // This prevents the flicker by maintaining the current session throughout
+    // CRITICAL: Immediately restore the admin/broker session
+    // Do this BEFORE any other operations to prevent session confusion
     if (currentSession) {
-      await supabase.auth.setSession({
+      const { error: sessionError } = await supabase.auth.setSession({
         access_token: currentSession.access_token,
         refresh_token: currentSession.refresh_token,
       });
-      console.log('🔵 Restored session immediately');
+      
+      if (sessionError) {
+        console.error('❌ Error restoring session:', sessionError);
+      } else {
+        console.log('🔵 Restored session immediately');
+        
+        // Verify the session is correct
+        const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+        if (verifiedSession?.user?.id !== currentUserId) {
+          console.warn('⚠️ Session user mismatch, retrying...');
+          await supabase.auth.setSession({
+            access_token: currentSession.access_token,
+            refresh_token: currentSession.refresh_token,
+          });
+        }
+      }
     }
     
     // Wait for user to be committed
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     // Profile will be auto-created by trigger, but update it with additional data
     const { data, error } = await supabase
