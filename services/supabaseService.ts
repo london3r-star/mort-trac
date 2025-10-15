@@ -76,23 +76,18 @@ export const createClientProfile = async (
 
     console.log('✅ Client auth user created:', authData.user.id);
     
-    // Sign out the new client immediately
-    await supabase.auth.signOut();
-    console.log('🔵 Signed out new client');
-    
-    // Restore broker/admin session
+    // IMPROVED: Restore session immediately without signOut
+    // This prevents the flicker by maintaining the current session throughout
     if (currentSession) {
       await supabase.auth.setSession({
         access_token: currentSession.access_token,
         refresh_token: currentSession.refresh_token,
       });
-      console.log('🔵 Restored session');
-      // Wait for session to fully restore before proceeding
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔵 Restored session immediately');
     }
     
     // Wait for user to be committed
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Profile will be auto-created by trigger, but update it with additional data
     const { data, error } = await supabase
@@ -164,23 +159,18 @@ export const createBroker = async (
 
     console.log('✅ Auth user created:', authData.user.id);
     
-    // Sign out the new user immediately (signUp auto-logs them in)
-    await supabase.auth.signOut();
-    console.log('🔵 Signed out new user');
-    
-    // Restore admin session
+    // IMPROVED: Restore session immediately without signOut
+    // This prevents the flicker by maintaining the current session throughout
     if (currentSession) {
       await supabase.auth.setSession({
         access_token: currentSession.access_token,
         refresh_token: currentSession.refresh_token,
       });
-      console.log('🔵 Restored admin session');
-      // Wait for session to fully restore before proceeding
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔵 Restored admin session immediately');
     }
 
     // Step 2: Wait for auth user to be fully committed
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Step 3: Check if trigger already created the profile
     const { data: existingProfile } = await supabase
