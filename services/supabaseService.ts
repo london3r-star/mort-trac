@@ -14,24 +14,15 @@ export const adminResetUserPassword = async (
   try {
     console.log('🔵 Admin resetting password for user:', userId);
     
-    // Update the user's password in auth.users table
-    const { error: authError } = await supabase.rpc('admin_reset_password', {
+    // Call the SQL function with correct parameter order
+    const { error } = await supabase.rpc('update_user_password', {
       user_id: userId,
       new_password: newPassword
     });
 
-    if (authError) {
-      console.error('❌ Auth password update error:', authError);
-      // Fallback: try updating via SQL directly
-      const { error: sqlError } = await supabase.rpc('update_user_password', {
-        user_id: userId,
-        new_password: newPassword
-      });
-      
-      if (sqlError) {
-        console.error('❌ SQL password update error:', sqlError);
-        return { error: sqlError };
-      }
+    if (error) {
+      console.error('❌ Password update error:', error);
+      return { error };
     }
 
     // Set must_change_password flag in profiles table
