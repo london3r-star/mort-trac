@@ -5,6 +5,54 @@ import { User, Application, ApplicationStatus, Role, ApplicationHistory } from '
 // USER SERVICE
 // =====================================================
 
+// Add this function to your supabaseService.ts file (in the USER SERVICE section)
+
+export const adminResetUserPassword = async (
+  userId: string,
+  newPassword: string
+) => {
+  try {
+    console.log('🔵 Admin resetting password for user:', userId);
+    
+    // Update the user's password in auth.users table
+    const { error: authError } = await supabase.rpc('admin_reset_password', {
+      user_id: userId,
+      new_password: newPassword
+    });
+
+    if (authError) {
+      console.error('❌ Auth password update error:', authError);
+      // Fallback: try updating via SQL directly
+      const { error: sqlError } = await supabase.rpc('update_user_password', {
+        user_id: userId,
+        new_password: newPassword
+      });
+      
+      if (sqlError) {
+        console.error('❌ SQL password update error:', sqlError);
+        return { error: sqlError };
+      }
+    }
+
+    // Set must_change_password flag in profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('❌ Profile update error:', profileError);
+      return { error: profileError };
+    }
+
+    console.log('✅ Password reset successful for user:', userId);
+    return { error: null };
+  } catch (err) {
+    console.error('❌ Exception in adminResetUserPassword:', err);
+    return { error: err as Error };
+  }
+};
+
 export const createUserProfile = async (
   userId: string,
   name: string,
