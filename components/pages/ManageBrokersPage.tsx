@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { User, Role, Application, STATUS_DISPLAY_NAMES } from '../../types';
 import BrokerModal from '../ui/BrokerModal';
 import ConfirmModal from '../ui/ConfirmModal';
+import ResetPasswordModal from '../ui/ResetPasswordModal';
 
 interface ManageBrokersPageProps {
   user: User;
@@ -17,6 +18,7 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBroker, setEditingBroker] = useState<User | null>(null);
   const [deletingBroker, setDeletingBroker] = useState<User | null>(null);
+  const [resettingPasswordBroker, setResettingPasswordBroker] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
 
@@ -116,6 +118,22 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
     const updatedUsers = users.filter(u => u.id !== deletingBroker.id);
     setUsers(updatedUsers);
     setDeletingBroker(null);
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resettingPasswordBroker) return;
+    
+    const { adminResetUserPassword } = await import('../../services/supabaseService');
+    const { error } = await adminResetUserPassword(resettingPasswordBroker.id, newPassword);
+    
+    if (error) {
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password. Please try again.');
+      return;
+    }
+    
+    alert(`Password reset successfully for ${resettingPasswordBroker.name}. They will be prompted to change it on next login.`);
+    setResettingPasswordBroker(null);
   };
 
   const filteredAndSortedBrokers = useMemo(() => {
@@ -289,6 +307,14 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => setResettingPasswordBroker(broker)}
+                      className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      disabled={broker.id === user.id}
+                      title="Reset Password"
+                    >
+                      Reset
+                    </button>
                     <button 
                       onClick={() => handleOpenEditModal(broker)} 
                       className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -337,6 +363,13 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
         onConfirm={handleConfirmDelete}
         title="Remove Broker"
         message={`Are you sure you want to remove ${deletingBroker?.name}? This will permanently delete their account.`}
+      />
+
+      <ResetPasswordModal
+        isOpen={!!resettingPasswordBroker}
+        onClose={() => setResettingPasswordBroker(null)}
+        onConfirm={handleResetPassword}
+        user={resettingPasswordBroker!}
       />
 
     </div>
