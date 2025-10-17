@@ -14,10 +14,8 @@ export const adminResetUserPassword = async (
   try {
     console.log('🔵 Admin resetting password for user:', userId);
     
-    // Call the SQL function with correct parameter order
-    const { error } = await supabase.rpc('update_user_password', {
-      user_id: userId,
-      new_password: newPassword
+    const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+      body: { userId, newPassword }
     });
 
     if (error) {
@@ -25,21 +23,10 @@ export const adminResetUserPassword = async (
       return { error };
     }
 
-    // Set must_change_password flag in profiles table
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ must_change_password: true })
-      .eq('id', userId);
-
-    if (profileError) {
-      console.error('❌ Profile update error:', profileError);
-      return { error: profileError };
-    }
-
-    console.log('✅ Password reset successful for user:', userId);
+    console.log('✅ Password reset successful');
     return { error: null };
   } catch (err) {
-    console.error('❌ Exception in adminResetUserPassword:', err);
+    console.error('❌ Exception:', err);
     return { error: err as Error };
   }
 };
