@@ -4,6 +4,7 @@ import Header from '../ui/Header';
 import BrokerDashboard from '../dashboard/BrokerDashboard';
 import ClientDashboard from '../dashboard/ClientDashboard';
 import ManageBrokersPage from './ManageBrokersPage';
+import ChangePasswordModal from '../ui/ChangePasswordModal';
 
 interface DashboardPageProps {
   user: User;
@@ -33,6 +34,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     return sessionStorage.getItem('isManagingBrokers') === 'true';
   });
   const [viewingBroker, setViewingBroker] = useState<User | null>(null);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   
   // Update sessionStorage when isManagingBrokers changes
   React.useEffect(() => {
@@ -53,6 +55,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     setIsManagingBrokers(true);
     setViewingBroker(null);
   }
+
+  const handleChangePassword = () => {
+    setIsChangePasswordModalOpen(true);
+  };
   
   const canManageBrokers = user.isAdmin || user.isTeamManager || user.isBrokerAdmin;
 
@@ -70,9 +76,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           />
         );
       }
+
       if (isManagingBrokers && canManageBrokers) {
         return <ManageBrokersPage user={user} users={users} setUsers={setUsers} onViewBrokerDashboard={handleViewBrokerDashboard} applications={applications} />;
       }
+
       return (
         <BrokerDashboard
           user={user}
@@ -97,6 +105,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       <Header
         user={user}
         onLogout={onLogout}
+        onChangePassword={handleChangePassword}
         onManageBrokers={canManageBrokers ? handleShowManageBrokers : undefined}
         isManagingBrokers={isManagingBrokers}
         onBackToDashboard={isManagingBrokers ? () => setIsManagingBrokers(false) : undefined}
@@ -108,6 +117,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       <main className="p-4 sm:p-6 lg:p-8">
         {renderContent()}
       </main>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
+        user={user}
+      />
     </div>
   );
 };
