@@ -70,23 +70,22 @@ const AppContent: React.FC = () => {
         setUsers(usersData);
       }
 
-// Fetch applications based on user role
-if (user.role === 'CLIENT') {
-  console.log('📱 Fetching client application');
-  const { data: clientApp } = await getApplicationsByClientId(user.id);
-  setClientApplication(clientApp);
-  console.log('📱 Client app:', clientApp);
-} else {
-  console.log('📊 Fetching all applications');
-  const { data: appsData } = await getAllApplications();
-  console.log('📊 Applications received:', appsData?.length || 0, 'apps');
-  if (appsData) {
-    setApplications(appsData);
-    console.log('✅ Applications set in state');
-  } else {
-    console.log('❌ No applications data returned');
-  }
-}
+      // Fetch applications based on user role
+      if (user.role === 'CLIENT') {
+        const { data: clientApp } = await getApplicationsByClientId(user.id);
+        setClientApplication(clientApp);
+      } else {
+        const { data: appsData } = await getAllApplications();
+        if (appsData) {
+          setApplications(appsData);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user]);
 
   // Fetch data when user is logged in
   useEffect(() => {
@@ -184,7 +183,7 @@ if (user.role === 'CLIENT') {
       />
     </div>
   );
-}finally
+};
 
 const App: React.FC = () => {
   return (
