@@ -33,6 +33,16 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
 
   const displayUser = viewedBroker || user;
 
+console.log('🔍 Debug Info:', {
+  userName: user.name,
+  isAdmin: user.isAdmin,
+  isTeamManager: user.isTeamManager,
+  isBrokerAdmin: user.isBrokerAdmin,
+  companyName: user.companyName,
+  totalApplications: applications.length,
+  totalUsers: users.length
+});
+  
   const brokerVisibleApplications = useMemo(() => {
     // If an admin/manager is viewing a specific broker's dashboard, show only that broker's applications.
     if (viewedBroker) {
