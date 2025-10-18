@@ -184,7 +184,7 @@ if (user.role === 'CLIENT') {
       />
     </div>
   );
-};
+}finally
 
 const App: React.FC = () => {
   return (
