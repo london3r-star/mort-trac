@@ -4,7 +4,8 @@ import { User } from '../../types';
 interface HeaderProps {
   user: User;
   onLogout: () => void;
-  onManageBrokers?: () => void; // Optional for admin brokers
+  onChangePassword: () => void; // NEW
+  onManageBrokers?: () => void;
   isManagingBrokers?: boolean;
   onBackToDashboard?: () => void;
   viewingBroker?: User | null;
@@ -13,7 +14,18 @@ interface HeaderProps {
   toggleTheme: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, onManageBrokers, isManagingBrokers, onBackToDashboard, viewingBroker, onBackToManageBrokers, theme, toggleTheme }) => {
+const Header: React.FC<HeaderProps> = ({ 
+  user, 
+  onLogout, 
+  onChangePassword, 
+  onManageBrokers, 
+  isManagingBrokers, 
+  onBackToDashboard, 
+  viewingBroker, 
+  onBackToManageBrokers, 
+  theme, 
+  toggleTheme 
+}) => {
   return (
     <header className="bg-brand-primary dark:bg-gray-800 shadow-md sticky top-0 z-40">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,6 +77,13 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onManageBrokers, isMana
               )}
             </button>
             <span className="hidden sm:block text-sm text-white">Welcome, <span className="font-semibold">{user.name}</span></span>
+            <button
+              onClick={onChangePassword}
+              className="hidden sm:block px-3 py-2 rounded-md text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 transition"
+              title="Change Password"
+            >
+              Change Password
+            </button>
             <button
               onClick={onLogout}
               className="px-3 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition"
