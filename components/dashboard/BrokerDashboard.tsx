@@ -131,8 +131,11 @@ console.log('🔍 Debug Info:', {
         return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
       });
     } else {
-        // Default sort by most recent update
-        filtered.sort((a, b) => new Date(b.history[b.history.length-1].date).getTime() - new Date(a.history[a.history.length-1].date).getTime());
+      filtered.sort((a, b) => {
+  const aDate = a.history && a.history.length > 0 ? new Date(a.history[a.history.length-1].date).getTime() : 0;
+  const bDate = b.history && b.history.length > 0 ? new Date(b.history[b.history.length-1].date).getTime() : 0;
+  return bDate - aDate;
+});
     }
 
     return filtered;
