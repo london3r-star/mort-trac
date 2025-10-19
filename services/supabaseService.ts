@@ -744,8 +744,14 @@ export const updateApplicationStatus = async (
 
 // Replace your deleteApplication function in supabaseService.ts with this:
 
+// Replace your deleteApplication function in supabaseService.ts with this:
+
 export const deleteApplication = async (applicationId: string) => {
   try {
+    // Save current session BEFORE any operations
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const currentUserId = currentSession?.user?.id;
+
     // First, get the application to find the client_id
     const { data: appData, error: fetchError } = await supabase
       .from('applications')
@@ -789,18 +795,33 @@ export const deleteApplication = async (applicationId: string) => {
         // No other applications, delete the client profile
         console.log('No other applications found for client, deleting client profile');
         
-        // Delete from auth.users (this will cascade to profiles due to FK constraint)
-        const { error: deleteUserError } = await supabase.auth.admin.deleteUser(clientId);
+        // Delete from profiles table (this will trigger cascade delete)
+        const { error: deleteProfileError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', clientId)
+          .eq('role', 'CLIENT'); // Safety check to only delete clients
         
-        if (deleteUserError) {
-          console.error('Error deleting client user:', deleteUserError);
-          // Continue anyway - the application is already deleted
+        if (deleteProfileError) {
+          console.error('Error deleting client profile:', deleteProfileError);
         } else {
-          console.log('Client user deleted successfully');
+          console.log('Client profile deleted successfully');
         }
       } else {
         console.log('Client has other applications, keeping profile');
       }
+    }
+
+    // RESTORE session if it changed
+    const { data: { session: afterSession } } = await supabase.auth.getSession();
+    
+    if (currentSession && afterSession?.user?.id !== currentUserId) {
+      console.log('⚠️ Session changed during delete, restoring...');
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+      });
+      console.log('✅ Session restored');
     }
 
     return { error: null };
