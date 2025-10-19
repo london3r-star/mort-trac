@@ -31,6 +31,36 @@ export const adminResetUserPassword = async (
   }
 };
 
+export const sendEmailToClient = async (
+  to: string,
+  subject: string,
+  body: string,
+  fromName?: string,
+  fromEmail?: string
+) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to,
+        subject,
+        body,
+        fromName,
+        fromEmail,
+      },
+    });
+
+    if (error) {
+      console.error('Error sending email:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exception sending email:', err);
+    return { success: false, error: err };
+  }
+};
+
 export const createUserProfile = async (
   userId: string,
   name: string,
