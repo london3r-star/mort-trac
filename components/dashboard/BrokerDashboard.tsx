@@ -15,11 +15,12 @@ interface BrokerDashboardProps {
   onUpdateApplications: (updatedApplications: Application[]) => void;
   users: User[];
   setUsers: (users: User[]) => void;
+  onViewBrokerDashboard?: (broker: User) => void;  // ADD THIS LINE
 }
 
 type SortableKeys = 'clientName' | 'mortgageLender' | 'loanAmount' | 'interestRateExpiryDate' | 'status' | 'solicitor.firmName';
 
-const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, applications, onUpdateApplications, users, setUsers }) => {
+const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, applications, onUpdateApplications, users, setUsers, onViewBrokerDashboard }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,6 +49,15 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     return broker?.name || 'Unknown';
   };
 
+// Helper function to handle broker name click
+const handleBrokerClick = (brokerId: string) => {
+  if (!onViewBrokerDashboard) return;
+  const broker = users.find(u => u.id === brokerId);
+  if (broker && broker.id !== user.id) {
+    onViewBrokerDashboard(broker);
+  }
+};
+  
   // Helper function to get client user from application
   const getClientUser = (app: Application): User | undefined => {
     return users.find(u => u.id === app.clientId);
@@ -459,11 +469,20 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                       </button>
                       <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
                     </td>
-                    {shouldShowBrokerColumn && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                        {getBrokerName(app.brokerId)}
-                      </td>
-                    )}
+                  {shouldShowBrokerColumn && (
+  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+    {onViewBrokerDashboard && app.brokerId !== user.id ? (
+      <button
+        onClick={() => handleBrokerClick(app.brokerId)}
+        className="text-brand-secondary dark:text-blue-400 hover:underline font-medium"
+      >
+        {getBrokerName(app.brokerId)}
+      </button>
+    ) : (
+      <span>{getBrokerName(app.brokerId)}</span>
+    )}
+  </td>
+)}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                       <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary dark:text-blue-400 hover:underline text-left">
