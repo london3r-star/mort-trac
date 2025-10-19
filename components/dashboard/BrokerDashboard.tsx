@@ -33,6 +33,22 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
 
   const displayUser = viewedBroker || user;
 
+// Add this near the top of the component, after the displayUser definition (around line 37):
+
+const shouldShowBrokerColumn = useMemo(() => {
+  // Show broker column if:
+  // 1. User is admin/team manager/broker admin AND
+  // 2. They're viewing ALL applications (not just their own)
+  return (user.isAdmin || user.isTeamManager || user.isBrokerAdmin) && !viewedBroker;
+}, [user, viewedBroker]);
+
+// Helper function to get broker name
+const getBrokerName = (brokerId: string) => {
+  const broker = users.find(u => u.id === brokerId);
+  return broker?.name || 'Unknown';
+};
+
+  
 console.log('🔍 Debug Info:', {
   userName: user.name,
   isAdmin: user.isAdmin,
@@ -386,9 +402,12 @@ console.log('🔍 Debug Info:', {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+           <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th onClick={() => requestSort('clientName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Client / Property{getSortIndicator('clientName')}</th>
+                {shouldShowBrokerColumn && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Broker</th>
+                )}
                 <th onClick={() => requestSort('mortgageLender')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Lender{getSortIndicator('mortgageLender')}</th>
                 <th onClick={() => requestSort('solicitor.firmName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Solicitor Firm{getSortIndicator('solicitor.firmName')}</th>
                 <th onClick={() => requestSort('loanAmount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Loan{getSortIndicator('loanAmount')}</th>
@@ -405,14 +424,19 @@ console.log('🔍 Debug Info:', {
                 const isExpiringSoon = expiryDate < sixMonthsFromNow;
 
                 return (
-                  <tr key={app.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary dark:text-blue-400 hover:underline text-left">
-                          {app.clientName}
-                      </button>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
+                      <tr key={app.id}>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary dark:text-blue-400 hover:underline text-left">
+            {app.clientName}
+        </button>
+        <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
+      </td>
+      {shouldShowBrokerColumn && (
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+          {getBrokerName(app.brokerId)}
+        </td>
+      )}
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                       <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary dark:text-blue-400 hover:underline text-left">
                           {app.solicitor.firmName}
