@@ -73,6 +73,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             onUpdateApplications={onUpdateApplications}
             users={users}
             setUsers={setUsers}
+            onViewBrokerDashboard={canManageBrokers ? handleViewBrokerDashboard : undefined}
           />
         );
       }
@@ -88,6 +89,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           onUpdateApplications={onUpdateApplications}
           users={users}
           setUsers={setUsers}
+          onViewBrokerDashboard={canManageBrokers ? handleViewBrokerDashboard : undefined}
         />
       );
     }
