@@ -30,9 +30,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   toggleTheme,
 }) => {
   // Persist navigation state to prevent reset during session changes
-  const [isManagingBrokers, setIsManagingBrokers] = useState(() => {
-    return sessionStorage.getItem('isManagingBrokers') === 'true';
-  });
+  const [isManagingBrokers, setIsManagingBrokers] = useState(false);
   const [viewingBroker, setViewingBroker] = useState<User | null>(null);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [cameFromManageBrokers, setCameFromManageBrokers] = useState(false);
