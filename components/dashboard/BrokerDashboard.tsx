@@ -6,6 +6,7 @@ import HistoryModal from '../ui/HistoryModal';
 import SolicitorInfoModal from '../ui/SolicitorInfoModal';
 import NotesModal from '../ui/NotesModal';
 import EmailClientModal from '../ui/EmailClientModal';
+import ResetPasswordModal from '../ui/ResetPasswordModal';
 
 interface BrokerDashboardProps {
   user: User; // The logged-in user
@@ -28,36 +29,39 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
   const [viewingSolicitorApp, setViewingSolicitorApp] = useState<Application | null>(null);
   const [notesModalApp, setNotesModalApp] = useState<Application | null>(null);
   const [emailModalApp, setEmailModalApp] = useState<Application | null>(null);
+  const [resettingPasswordClient, setResettingPasswordClient] = useState<User | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
   const [emailedClients, setEmailedClients] = useState<Set<string>>(new Set());
 
   const displayUser = viewedBroker || user;
 
-// Add this near the top of the component, after the displayUser definition (around line 37):
+  const shouldShowBrokerColumn = useMemo(() => {
+    // Show broker column if:
+    // 1. User is admin/team manager/broker admin AND
+    // 2. They're viewing ALL applications (not just their own)
+    return (user.isAdmin || user.isTeamManager || user.isBrokerAdmin) && !viewedBroker;
+  }, [user, viewedBroker]);
 
-const shouldShowBrokerColumn = useMemo(() => {
-  // Show broker column if:
-  // 1. User is admin/team manager/broker admin AND
-  // 2. They're viewing ALL applications (not just their own)
-  return (user.isAdmin || user.isTeamManager || user.isBrokerAdmin) && !viewedBroker;
-}, [user, viewedBroker]);
+  // Helper function to get broker name
+  const getBrokerName = (brokerId: string) => {
+    const broker = users.find(u => u.id === brokerId);
+    return broker?.name || 'Unknown';
+  };
 
-// Helper function to get broker name
-const getBrokerName = (brokerId: string) => {
-  const broker = users.find(u => u.id === brokerId);
-  return broker?.name || 'Unknown';
-};
+  // Helper function to get client user from application
+  const getClientUser = (app: Application): User | undefined => {
+    return users.find(u => u.id === app.clientId);
+  };
 
-  
-console.log('🔍 Debug Info:', {
-  userName: user.name,
-  isAdmin: user.isAdmin,
-  isTeamManager: user.isTeamManager,
-  isBrokerAdmin: user.isBrokerAdmin,
-  companyName: user.companyName,
-  totalApplications: applications.length,
-  totalUsers: users.length
-});
+  console.log('🔍 Debug Info:', {
+    userName: user.name,
+    isAdmin: user.isAdmin,
+    isTeamManager: user.isTeamManager,
+    isBrokerAdmin: user.isBrokerAdmin,
+    companyName: user.companyName,
+    totalApplications: applications.length,
+    totalUsers: users.length
+  });
   
   const brokerVisibleApplications = useMemo(() => {
     // If an admin/manager is viewing a specific broker's dashboard, show only that broker's applications.
@@ -148,10 +152,10 @@ console.log('🔍 Debug Info:', {
       });
     } else {
       filtered.sort((a, b) => {
-  const aDate = a.history && a.history.length > 0 ? new Date(a.history[a.history.length-1].date).getTime() : 0;
-  const bDate = b.history && b.history.length > 0 ? new Date(b.history[b.history.length-1].date).getTime() : 0;
-  return bDate - aDate;
-});
+        const aDate = a.history && a.history.length > 0 ? new Date(a.history[a.history.length-1].date).getTime() : 0;
+        const bDate = b.history && b.history.length > 0 ? new Date(b.history[b.history.length-1].date).getTime() : 0;
+        return bDate - aDate;
+      });
     }
 
     return filtered;
@@ -302,6 +306,22 @@ console.log('🔍 Debug Info:', {
     }
   };
 
+  const handleResetClientPassword = async (newPassword: string) => {
+    if (!resettingPasswordClient) return;
+    
+    const { adminResetUserPassword } = await import('../../services/supabaseService');
+    const { error } = await adminResetUserPassword(resettingPasswordClient.id, newPassword);
+    
+    if (error) {
+      console.error('Error resetting client password:', error);
+      alert('Failed to reset client password. Please try again.');
+      return;
+    }
+    
+    alert(`Password reset successfully for ${resettingPasswordClient.name}. They will be prompted to change it on next login.`);
+    setResettingPasswordClient(null);
+  };
+
   const handleSaveNotes = async (appId: string, newNotes: string) => {
     const { updateApplication } = await import('../../services/supabaseService');
     const { data, error } = await updateApplication(appId, { notes: newNotes });
@@ -343,6 +363,14 @@ console.log('🔍 Debug Info:', {
     setEmailModalApp(null);
   };
 
+  const handleOpenResetPasswordModal = (app: Application) => {
+    const clientUser = getClientUser(app);
+    if (clientUser) {
+      setResettingPasswordClient(clientUser);
+    } else {
+      alert('Client user not found. Unable to reset password.');
+    }
+  };
 
   return (
     <div className="container mx-auto">
@@ -424,19 +452,19 @@ console.log('🔍 Debug Info:', {
                 const isExpiringSoon = expiryDate < sixMonthsFromNow;
 
                 return (
-                      <tr key={app.id}>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary dark:text-blue-400 hover:underline text-left">
-            {app.clientName}
-        </button>
-        <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
-      </td>
-      {shouldShowBrokerColumn && (
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-          {getBrokerName(app.brokerId)}
-        </td>
-      )}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
+                  <tr key={app.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary dark:text-blue-400 hover:underline text-left">
+                          {app.clientName}
+                      </button>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
+                    </td>
+                    {shouldShowBrokerColumn && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {getBrokerName(app.brokerId)}
+                      </td>
+                    )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                       <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary dark:text-blue-400 hover:underline text-left">
                           {app.solicitor.firmName}
@@ -472,6 +500,13 @@ console.log('🔍 Debug Info:', {
                           {emailedClients.has(app.id) ? 'Emailed' : 'Email'}
                         </button>
                       )}
+                      <button 
+                        onClick={() => handleOpenResetPasswordModal(app)} 
+                        className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 mr-4"
+                        title="Reset Client Password"
+                      >
+                        Reset
+                      </button>
                       <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-4">Notes</button>
                       <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4">Edit</button>
                       <button onClick={() => setDeletingApplicationId(app.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
@@ -529,6 +564,13 @@ console.log('🔍 Debug Info:', {
         application={emailModalApp}
         broker={displayUser}
        />
+
+      <ResetPasswordModal
+        isOpen={!!resettingPasswordClient}
+        onClose={() => setResettingPasswordClient(null)}
+        onConfirm={handleResetClientPassword}
+        user={resettingPasswordClient!}
+      />
     </div>
   );
 };
