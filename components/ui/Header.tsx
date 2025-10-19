@@ -1,17 +1,20 @@
 import React from 'react';
 import { User } from '../../types';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   user: User;
   onLogout: () => void;
-  onChangePassword: () => void; // NEW
+  onChangePassword: () => void;
   onManageBrokers?: () => void;
   isManagingBrokers?: boolean;
   onBackToDashboard?: () => void;
   viewingBroker?: User | null;
   onBackToManageBrokers?: () => void;
+  onBackToDashboardFromBroker?: () => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  onResetClientPassword?: (clientId: string, notificationId: string) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -24,8 +27,12 @@ const Header: React.FC<HeaderProps> = ({
   viewingBroker, 
   onBackToManageBrokers, 
   theme, 
-  toggleTheme 
+  toggleTheme,
+  onResetClientPassword
 }) => {
+  // Show notifications for admins, team managers, and broker admins
+  const canSeeNotifications = user.isAdmin || user.isTeamManager || user.isBrokerAdmin || user.role === 'BROKER';
+
   return (
     <header className="bg-brand-primary dark:bg-gray-800 shadow-md sticky top-0 z-40">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -60,6 +67,9 @@ const Header: React.FC<HeaderProps> = ({
               >
                 Manage Brokers
               </button>
+            )}
+            {canSeeNotifications && onResetClientPassword && (
+              <NotificationBell onResetClientPassword={onResetClientPassword} />
             )}
             <button
               onClick={toggleTheme}
