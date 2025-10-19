@@ -310,8 +310,17 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                     <button
                       onClick={() => setResettingPasswordBroker(broker)}
                       className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      disabled={broker.id === user.id}
-                      title="Reset Password"
+                      disabled={
+                        broker.id === user.id || // Can't reset your own password
+                        (user.isBrokerAdmin && !user.isAdmin && broker.isTeamManager) // Broker Admins can't reset Team Manager passwords
+                      }
+                      title={
+                        broker.id === user.id 
+                          ? "Cannot reset your own password" 
+                          : (user.isBrokerAdmin && !user.isAdmin && broker.isTeamManager)
+                          ? "Broker Admins cannot reset Team Manager passwords"
+                          : "Reset Password"
+                      }
                     >
                       Reset
                     </button>
@@ -324,16 +333,19 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                     >
                         Edit
                     </button>
-                    <button
-                      onClick={() => setDeletingBroker(broker)}
-                      className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      disabled={
-                        broker.id === user.id || // Can't delete yourself
-                        (!user.isAdmin && broker.isAdmin) // Non-admins can't delete admins
-                      }
-                    >
-                      Remove
-                    </button>
+                    {/* Hide Remove button for Broker Admins */}
+                    {!user.isBrokerAdmin && (
+                      <button
+                        onClick={() => setDeletingBroker(broker)}
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        disabled={
+                          broker.id === user.id || // Can't delete yourself
+                          (!user.isAdmin && broker.isAdmin) // Non-admins can't delete admins
+                        }
+                      >
+                        Remove
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
