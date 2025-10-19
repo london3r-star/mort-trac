@@ -1,11 +1,9 @@
 import React from 'react';
 import { User } from '../../types';
-import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   user: User;
   onLogout: () => void;
-  onChangePassword: () => void; // NEW
   onChangePassword: () => void;
   onManageBrokers?: () => void;
   isManagingBrokers?: boolean;
@@ -15,30 +13,63 @@ interface HeaderProps {
   onBackToDashboardFromBroker?: () => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  onResetClientPassword?: (clientId: string, notificationId: string) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
-@@ -24,8 +27,12 @@
+  user, 
+  onLogout, 
+  onChangePassword, 
+  onManageBrokers, 
+  isManagingBrokers, 
+  onBackToDashboard, 
   viewingBroker, 
-  onBackToManageBrokers, 
+  onBackToManageBrokers,
+  onBackToDashboardFromBroker,
   theme, 
-  toggleTheme 
-  toggleTheme,
-  onResetClientPassword
+  toggleTheme
 }) => {
-  // Show notifications for admins, team managers, and broker admins
-  const canSeeNotifications = user.isAdmin || user.isTeamManager || user.isBrokerAdmin || user.role === 'BROKER';
-
   return (
     <header className="bg-brand-primary dark:bg-gray-800 shadow-md sticky top-0 z-40">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-@@ -61,40 +68,43 @@
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+             <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-brand-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="ml-3 text-xl font-bold text-white">Mortgage Tracker Pro</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            {viewingBroker && onBackToManageBrokers && (
+                <button
+                    onClick={onBackToManageBrokers}
+                    className="px-3 py-2 rounded-md text-sm font-medium text-white bg-brand-secondary hover:bg-opacity-90 transition"
+                >
+                    &larr; Back to Manage Brokers
+                </button>
+            )}
+            {viewingBroker && onBackToDashboardFromBroker && (
+                <button
+                    onClick={onBackToDashboardFromBroker}
+                    className="px-3 py-2 rounded-md text-sm font-medium text-white bg-brand-secondary hover:bg-opacity-90 transition"
+                >
+                    &larr; Back to Dashboard
+                </button>
+            )}
+            {isManagingBrokers && onBackToDashboard && (
+                <button
+                    onClick={onBackToDashboard}
+                    className="px-3 py-2 rounded-md text-sm font-medium text-white bg-brand-secondary hover:bg-opacity-90 transition"
+                >
+                    &larr; Back to Dashboard
+                </button>
+            )}
+            {onManageBrokers && !isManagingBrokers && !viewingBroker && (
+              <button
+                onClick={onManageBrokers}
+                className="hidden md:block px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-brand-secondary dark:hover:bg-gray-700 transition"
+              >
                 Manage Brokers
               </button>
-            )}
-            {canSeeNotifications && onResetClientPassword && (
-              <NotificationBell onResetClientPassword={onResetClientPassword} />
             )}
             <button
               onClick={toggleTheme}
