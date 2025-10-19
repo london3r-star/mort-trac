@@ -742,20 +742,72 @@ export const updateApplicationStatus = async (
   return getApplicationById(applicationId);
 };
 
+// Replace your deleteApplication function in supabaseService.ts with this:
+
 export const deleteApplication = async (applicationId: string) => {
-  // Delete history first (CASCADE should handle this, but being explicit)
-  await supabase
-    .from('application_history')
-    .delete()
-    .eq('application_id', applicationId);
+  try {
+    // First, get the application to find the client_id
+    const { data: appData, error: fetchError } = await supabase
+      .from('applications')
+      .select('client_id')
+      .eq('id', applicationId)
+      .single();
 
-  // Delete application
-  const { error } = await supabase
-    .from('applications')
-    .delete()
-    .eq('id', applicationId);
+    if (fetchError) {
+      console.error('Error fetching application:', fetchError);
+      return { error: fetchError };
+    }
 
-  return { error };
+    const clientId = appData?.client_id;
+
+    // Delete application history first
+    await supabase
+      .from('application_history')
+      .delete()
+      .eq('application_id', applicationId);
+
+    // Delete the application
+    const { error: deleteError } = await supabase
+      .from('applications')
+      .delete()
+      .eq('id', applicationId);
+
+    if (deleteError) {
+      console.error('Error deleting application:', deleteError);
+      return { error: deleteError };
+    }
+
+    // Check if the client has any other applications
+    if (clientId) {
+      const { data: otherApps, error: checkError } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('client_id', clientId)
+        .limit(1);
+
+      if (!checkError && (!otherApps || otherApps.length === 0)) {
+        // No other applications, delete the client profile
+        console.log('No other applications found for client, deleting client profile');
+        
+        // Delete from auth.users (this will cascade to profiles due to FK constraint)
+        const { error: deleteUserError } = await supabase.auth.admin.deleteUser(clientId);
+        
+        if (deleteUserError) {
+          console.error('Error deleting client user:', deleteUserError);
+          // Continue anyway - the application is already deleted
+        } else {
+          console.log('Client user deleted successfully');
+        }
+      } else {
+        console.log('Client has other applications, keeping profile');
+      }
+    }
+
+    return { error: null };
+  } catch (err) {
+    console.error('Exception in deleteApplication:', err);
+    return { error: err as Error };
+  }
 };
 
 // =====================================================
