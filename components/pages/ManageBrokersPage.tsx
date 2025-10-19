@@ -333,8 +333,8 @@ const ManageBrokersPage: React.FC<ManageBrokersPageProps> = ({ user, users, setU
                     >
                         Edit
                     </button>
-                    {/* Hide Remove button for Broker Admins */}
-                    {!user.isBrokerAdmin && (
+                    {/* Hide Remove button for Broker Admins (unless they're also Master Admin) */}
+                    {(user.isAdmin || !user.isBrokerAdmin) && (
                       <button
                         onClick={() => setDeletingBroker(broker)}
                         className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:text-gray-400 disabled:cursor-not-allowed"
