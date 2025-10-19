@@ -67,6 +67,8 @@ export const createUserProfile = async (
 
 // Replace your createClientProfile function in supabaseService.ts with this improved version:
 
+// Replace the createClientProfile function in supabaseService.ts with this:
+
 export const createClientProfile = async (
   name: string,
   email: string,
@@ -78,14 +80,17 @@ export const createClientProfile = async (
   try {
     console.log('🔵 Creating client profile for:', email);
     
-    // Save current session to restore later
+    // Save current session BEFORE creating the client
     const { data: { session: currentSession } } = await supabase.auth.getSession();
-    console.log('🔵 Saved current session');
     
-    // Store the current user ID to verify later
-    const currentUserId = currentSession?.user?.id;
+    if (!currentSession) {
+      console.error('❌ No current session found');
+      return { data: null, error: new Error('No active session') };
+    }
     
-    // First create auth user
+    console.log('🔵 Saved current broker/admin session:', currentSession.user.email);
+    
+    // Create auth user (this will auto-login as the new user)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -98,43 +103,55 @@ export const createClientProfile = async (
       }
     });
 
-    console.log('🔵 Client auth signup response:', { authData, authError });
-
     if (authError || !authData.user) {
+      console.error('❌ Client auth error:', authError);
       return { data: null, error: authError };
     }
 
     console.log('✅ Client auth user created:', authData.user.id);
     
-    // CRITICAL: Immediately restore the admin/broker session
-    // Do this BEFORE any other operations to prevent session confusion
-    if (currentSession) {
-      const { error: sessionError } = await supabase.auth.setSession({
+    // IMMEDIATELY restore the broker/admin session
+    const { error: restoreError } = await supabase.auth.setSession({
+      access_token: currentSession.access_token,
+      refresh_token: currentSession.refresh_token,
+    });
+    
+    if (restoreError) {
+      console.error('❌ Error restoring session:', restoreError);
+    } else {
+      console.log('✅ Restored broker/admin session immediately');
+    }
+    
+    // VERIFY the session was restored correctly
+    const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+    
+    if (verifiedSession?.user?.email !== currentSession.user.email) {
+      console.warn('⚠️ Session not restored correctly, trying again...');
+      
+      // Try restoring again
+      await supabase.auth.setSession({
         access_token: currentSession.access_token,
         refresh_token: currentSession.refresh_token,
       });
       
-      if (sessionError) {
-        console.error('❌ Error restoring session:', sessionError);
+      // Wait a moment and check again
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const { data: { session: finalSession } } = await supabase.auth.getSession();
+      
+      if (finalSession?.user?.email !== currentSession.user.email) {
+        console.error('❌ Failed to restore session after retry');
       } else {
-        console.log('🔵 Restored session immediately');
-        
-        // Verify the session is correct
-        const { data: { session: verifiedSession } } = await supabase.auth.getSession();
-        if (verifiedSession?.user?.id !== currentUserId) {
-          console.warn('⚠️ Session user mismatch, retrying...');
-          await supabase.auth.setSession({
-            access_token: currentSession.access_token,
-            refresh_token: currentSession.refresh_token,
-          });
-        }
+        console.log('✅ Session restored after retry');
       }
+    } else {
+      console.log('✅ Session verified as broker/admin:', verifiedSession.user.email);
     }
     
-    // Wait for user to be committed
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Wait for the auth user to be committed to the database
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Profile will be auto-created by trigger, but update it with additional data
+    // Update/create the profile with additional data
     const { data, error } = await supabase
       .from('profiles')
       .upsert({
@@ -150,11 +167,16 @@ export const createClientProfile = async (
       .select()
       .single();
 
-    console.log('🔵 Client profile upsert response:', { data, error });
+    if (error) {
+      console.error('❌ Profile upsert error:', error);
+      return { data: null, error };
+    }
 
-    return { data: data || authData.user, error };
+    console.log('✅ Client profile created successfully');
+
+    return { data: data || authData.user, error: null };
   } catch (err) {
-    console.error('❌ Error creating client:', err);
+    console.error('❌ Exception in createClientProfile:', err);
     return { data: null, error: err as Error };
   }
 };
