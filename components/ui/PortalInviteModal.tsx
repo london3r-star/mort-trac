@@ -74,7 +74,7 @@ ${broker.email || ''}`;
         subject,
         body,
         broker.name,
-        broker.email || 'hello@mortgagetracker.net'
+        broker.email || 'no-reply@mortgagetracker.net'
       );
 
       if (result.success) {
