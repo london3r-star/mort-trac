@@ -30,9 +30,11 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
   const [viewingSolicitorApp, setViewingSolicitorApp] = useState<Application | null>(null);
   const [notesModalApp, setNotesModalApp] = useState<Application | null>(null);
   const [emailModalApp, setEmailModalApp] = useState<Application | null>(null);
-  const [resettingPasswordClient, setResettingPasswordClient] = useState<User | null>(null);
+  const [portalInviteApp, setPortalInviteApp] = useState<Application | null>(null);
+  const [clientPasswords, setClientPasswords] = useState<Record<string, string>>({});
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
   const [emailedClients, setEmailedClients] = useState<Set<string>>(new Set());
+  const [invitedClients, setInvitedClients] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
 
   const displayUser = viewedBroker || user;
@@ -52,10 +54,6 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     if (broker && broker.id !== user.id) {
       onViewBrokerDashboard(broker);
     }
-  };
-  
-  const getClientUser = (app: Application): User | undefined => {
-    return users.find(u => u.id === app.clientId);
   };
 
   console.log('🔍 Debug Info:', {
@@ -210,21 +208,21 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
         onUpdateApplications(updatedApplications);
       }
     } else {
-      // Show loading overlay when creating new application
       setIsCreating(true);
       
       try {
         const { createClientProfile, createApplication } = await import('../../services/supabaseService');
         const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
         let clientId: string;
+        let temporaryPassword = '';
         
         if (!clientUser) {
-          const clientPassword = appData.clientPassword || `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
+          temporaryPassword = `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
           
           const { data: newClientData, error: clientError } = await createClientProfile(
             appData.clientName,
             appData.clientEmail,
-            clientPassword,
+            temporaryPassword,
             appData.clientContactNumber,
             appData.clientCurrentAddress,
             displayUser.id
@@ -247,6 +245,11 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
           };
           setUsers([...users, newClient]);
           clientId = newClientData.id;
+          
+          setClientPasswords(prev => ({
+            ...prev,
+            [clientId]: temporaryPassword
+          }));
         } else {
           clientId = clientUser.id;
         }
@@ -313,20 +316,9 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     }
   };
 
-  const handleResetClientPassword = async (newPassword: string) => {
-    if (!resettingPasswordClient) return;
-    
-    const { adminResetUserPassword } = await import('../../services/supabaseService');
-    const { error } = await adminResetUserPassword(resettingPasswordClient.id, newPassword);
-    
-    if (error) {
-      console.error('Error resetting client password:', error);
-      alert('Failed to reset client password. Please try again.');
-      return;
-    }
-    
-    alert(`Password reset successfully for ${resettingPasswordClient.name}. They will be prompted to change it on next login.`);
-    setResettingPasswordClient(null);
+  const handleSendPortalInvite = () => {
+    setInvitedClients(prev => new Set(prev).add(portalInviteApp!.id));
+    setPortalInviteApp(null);
   };
 
   const handleSaveNotes = async (appId: string, newNotes: string) => {
@@ -370,18 +362,8 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
     setEmailModalApp(null);
   };
 
-  const handleOpenResetPasswordModal = (app: Application) => {
-    const clientUser = getClientUser(app);
-    if (clientUser) {
-      setResettingPasswordClient(clientUser);
-    } else {
-      alert('Client user not found. Unable to reset password.');
-    }
-  };
-
   return (
     <div className="container mx-auto">
-      {/* Loading Overlay */}
       {isCreating && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl text-center">
@@ -528,11 +510,12 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
                         </button>
                       )}
                       <button 
-                        onClick={() => handleOpenResetPasswordModal(app)} 
-                        className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 mr-4"
-                        title="Reset Client Password"
+                        onClick={() => setPortalInviteApp(app)} 
+                        disabled={invitedClients.has(app.id)}
+                        className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Send Portal Invitation"
                       >
-                        Reset
+                        {invitedClients.has(app.id) ? 'Invited' : 'Invite'}
                       </button>
                       <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-4">Notes</button>
                       <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4">Edit</button>
@@ -592,11 +575,13 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
         broker={displayUser}
        />
 
-      <ResetPasswordModal
-        isOpen={!!resettingPasswordClient}
-        onClose={() => setResettingPasswordClient(null)}
-        onConfirm={handleResetClientPassword}
-        user={resettingPasswordClient!}
+      <PortalInviteModal
+        isOpen={!!portalInviteApp}
+        onClose={() => setPortalInviteApp(null)}
+        onSent={handleSendPortalInvite}
+        application={portalInviteApp}
+        broker={displayUser}
+        temporaryPassword={portalInviteApp ? (clientPasswords[portalInviteApp.clientId] || 'Password sent separately') : ''}
       />
     </div>
   );
