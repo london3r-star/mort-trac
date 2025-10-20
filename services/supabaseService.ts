@@ -774,6 +774,13 @@ export const updateApplicationStatus = async (
   applicationId: string,
   newStatus: ApplicationStatus
 ): Promise<{ data: Application | null; error: any }> => {
+  // Get the application details first (we need client info for the email)
+  const { data: app, error: fetchError } = await getApplicationById(applicationId);
+  
+  if (fetchError || !app) {
+    return { data: null, error: fetchError };
+  }
+
   // Update application status
   const { error: updateError } = await supabase
     .from('applications')
@@ -792,6 +799,31 @@ export const updateApplicationStatus = async (
     });
 
   if (historyError) return { data: null, error: historyError };
+
+  // Send email if status is RATE_EXPIRY_REMINDER_SENT
+  if (newStatus === ApplicationStatus.RATE_EXPIRY_REMINDER_SENT) {
+    const subject = 'Mortgage Interest Rate Expiry Reminder';
+    const body = `Dear ${app.clientName},
+
+This is a friendly reminder that your mortgage interest rate is due to expire on ${new Date(app.interestRateExpiryDate).toLocaleDateString()}.
+
+Current Rate: ${app.interestRate}%
+Mortgage Lender: ${app.mortgageLender}
+Property: ${app.propertyAddress}
+
+Please contact us at your earliest convenience to discuss your options for renewal or remortgaging.
+
+Best regards,
+Mortgage Tracker Team`;
+
+    await sendEmailToClient(
+      app.clientEmail,
+      subject,
+      body,
+      'Mortgage Tracker',
+      'hello@mortgagetracker.net'
+    );
+  }
 
   return getApplicationById(applicationId);
 };
