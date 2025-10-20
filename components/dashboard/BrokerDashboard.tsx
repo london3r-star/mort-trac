@@ -9,13 +9,13 @@ import EmailClientModal from '../ui/EmailClientModal';
 import ResetPasswordModal from '../ui/ResetPasswordModal';
 
 interface BrokerDashboardProps {
-  user: User; // The logged-in user
-  viewedBroker?: User; // The broker whose dashboard is being viewed (for admins)
+  user: User;
+  viewedBroker?: User;
   applications: Application[];
   onUpdateApplications: (updatedApplications: Application[]) => void;
   users: User[];
   setUsers: (users: User[]) => void;
-  onViewBrokerDashboard?: (broker: User) => void;  // ADD THIS LINE
+  onViewBrokerDashboard?: (broker: User) => void;
 }
 
 type SortableKeys = 'clientName' | 'mortgageLender' | 'loanAmount' | 'interestRateExpiryDate' | 'status' | 'solicitor.firmName';
@@ -33,32 +33,27 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, a
   const [resettingPasswordClient, setResettingPasswordClient] = useState<User | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
   const [emailedClients, setEmailedClients] = useState<Set<string>>(new Set());
+  const [isCreating, setIsCreating] = useState(false);
 
   const displayUser = viewedBroker || user;
 
   const shouldShowBrokerColumn = useMemo(() => {
-    // Show broker column if:
-    // 1. User is admin/team manager/broker admin AND
-    // 2. They're viewing ALL applications (not just their own)
     return (user.isAdmin || user.isTeamManager || user.isBrokerAdmin) && !viewedBroker;
   }, [user, viewedBroker]);
 
-  // Helper function to get broker name
   const getBrokerName = (brokerId: string) => {
     const broker = users.find(u => u.id === brokerId);
     return broker?.name || 'Unknown';
   };
 
-// Helper function to handle broker name click
-const handleBrokerClick = (brokerId: string) => {
-  if (!onViewBrokerDashboard) return;
-  const broker = users.find(u => u.id === brokerId);
-  if (broker && broker.id !== user.id) {
-    onViewBrokerDashboard(broker);
-  }
-};
+  const handleBrokerClick = (brokerId: string) => {
+    if (!onViewBrokerDashboard) return;
+    const broker = users.find(u => u.id === brokerId);
+    if (broker && broker.id !== user.id) {
+      onViewBrokerDashboard(broker);
+    }
+  };
   
-  // Helper function to get client user from application
   const getClientUser = (app: Application): User | undefined => {
     return users.find(u => u.id === app.clientId);
   };
@@ -74,18 +69,14 @@ const handleBrokerClick = (brokerId: string) => {
   });
   
   const brokerVisibleApplications = useMemo(() => {
-    // If an admin/manager is viewing a specific broker's dashboard, show only that broker's applications.
     if (viewedBroker) {
       return applications.filter(app => app.brokerId === viewedBroker.id);
     }
 
-    // Default dashboard views based on role:
-    // Head admin sees all applications across all companies.
     if (user.isAdmin) {
       return applications;
     }
     
-    // Team Managers and Broker Admins see all applications from their own company.
     if (user.isTeamManager || user.isBrokerAdmin) {
       const companyBrokerIds = users
         .filter(u => u.role === Role.BROKER && u.companyName === user.companyName)
@@ -93,7 +84,6 @@ const handleBrokerClick = (brokerId: string) => {
       return applications.filter(app => companyBrokerIds.includes(app.brokerId));
     }
 
-    // Default for a standard broker: see only their own applications.
     return applications.filter(app => app.brokerId === user.id);
   }, [applications, user, users, viewedBroker]);
 
@@ -203,7 +193,7 @@ const handleBrokerClick = (brokerId: string) => {
   };
 
   const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string; clientPassword?: string }) => {
-    if (appData.id) { // Editing existing application
+    if (appData.id) {
       const { updateApplication } = await import('../../services/supabaseService');
       const { data, error } = await updateApplication(appData.id, appData);
       
@@ -219,61 +209,68 @@ const handleBrokerClick = (brokerId: string) => {
         );
         onUpdateApplications(updatedApplications);
       }
-    } else { // Creating new application
-      const { createClientProfile, createApplication } = await import('../../services/supabaseService');
-      const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
-      let clientId: string;
+    } else {
+      // Show loading overlay when creating new application
+      setIsCreating(true);
       
-      if (!clientUser) {
-        // Ensure we have a password for new client
-        const clientPassword = appData.clientPassword || `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
+      try {
+        const { createClientProfile, createApplication } = await import('../../services/supabaseService');
+        const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
+        let clientId: string;
         
-        // Create a new client profile in Supabase with auth user
-        const { data: newClientData, error: clientError } = await createClientProfile(
-          appData.clientName,
-          appData.clientEmail,
-          clientPassword,
-          appData.clientContactNumber,
-          appData.clientCurrentAddress,
-          displayUser.id
-        );
+        if (!clientUser) {
+          const clientPassword = appData.clientPassword || `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
+          
+          const { data: newClientData, error: clientError } = await createClientProfile(
+            appData.clientName,
+            appData.clientEmail,
+            clientPassword,
+            appData.clientContactNumber,
+            appData.clientCurrentAddress,
+            displayUser.id
+          );
+          
+          if (clientError || !newClientData) {
+            console.error('Error creating client:', clientError);
+            alert('Failed to create client profile. Please try again.');
+            setIsCreating(false);
+            return;
+          }
+          
+          const newClient: User = {
+            id: newClientData.id,
+            name: newClientData.name || appData.clientName,
+            email: newClientData.email || appData.clientEmail,
+            role: Role.CLIENT,
+            contactNumber: newClientData.contact_number || appData.clientContactNumber,
+            currentAddress: newClientData.current_address || appData.clientCurrentAddress,
+          };
+          setUsers([...users, newClient]);
+          clientId = newClientData.id;
+        } else {
+          clientId = clientUser.id;
+        }
+
+        const newApplicationData: Omit<Application, 'id' | 'history'> = {
+          ...appData,
+          clientId: clientId,
+          brokerId: displayUser.id,
+          notes: appData.notes || '',
+        };
         
-        if (clientError || !newClientData) {
-          console.error('Error creating client:', clientError);
-          alert('Failed to create client profile. Please try again.');
+        const { data: newApp, error: appError } = await createApplication(newApplicationData);
+        
+        if (appError || !newApp) {
+          console.error('Error creating application:', appError);
+          alert('Failed to create application. Please try again.');
+          setIsCreating(false);
           return;
         }
         
-        const newClient: User = {
-          id: newClientData.id,
-          name: newClientData.name || appData.clientName,
-          email: newClientData.email || appData.clientEmail,
-          role: Role.CLIENT,
-          contactNumber: newClientData.contact_number || appData.clientContactNumber,
-          currentAddress: newClientData.current_address || appData.clientCurrentAddress,
-        };
-        setUsers([...users, newClient]);
-        clientId = newClientData.id;
-      } else {
-        clientId = clientUser.id;
+        onUpdateApplications([...applications, newApp]);
+      } finally {
+        setIsCreating(false);
       }
-
-      const newApplicationData: Omit<Application, 'id' | 'history'> = {
-        ...appData,
-        clientId: clientId,
-        brokerId: displayUser.id,
-        notes: appData.notes || '',
-      };
-      
-      const { data: newApp, error: appError } = await createApplication(newApplicationData);
-      
-      if (appError || !newApp) {
-        console.error('Error creating application:', appError);
-        alert('Failed to create application. Please try again.');
-        return;
-      }
-      
-      onUpdateApplications([...applications, newApp]);
     }
     handleCloseModal();
   };
@@ -384,6 +381,17 @@ const handleBrokerClick = (brokerId: string) => {
 
   return (
     <div className="container mx-auto">
+      {/* Loading Overlay */}
+      {isCreating && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl text-center">
+            <div className="animate-spin h-12 w-12 border-4 border-brand-secondary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">Creating application...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Please wait</p>
+          </div>
+        </div>
+      )}
+
        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -469,20 +477,20 @@ const handleBrokerClick = (brokerId: string) => {
                       </button>
                       <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
                     </td>
-                  {shouldShowBrokerColumn && (
-  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-    {onViewBrokerDashboard && app.brokerId !== user.id ? (
-      <button
-        onClick={() => handleBrokerClick(app.brokerId)}
-        className="text-brand-secondary dark:text-blue-400 hover:underline font-medium"
-      >
-        {getBrokerName(app.brokerId)}
-      </button>
-    ) : (
-      <span>{getBrokerName(app.brokerId)}</span>
-    )}
-  </td>
-)}
+                    {shouldShowBrokerColumn && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        {onViewBrokerDashboard && app.brokerId !== user.id ? (
+                          <button
+                            onClick={() => handleBrokerClick(app.brokerId)}
+                            className="text-brand-secondary dark:text-blue-400 hover:underline font-medium"
+                          >
+                            {getBrokerName(app.brokerId)}
+                          </button>
+                        ) : (
+                          <span>{getBrokerName(app.brokerId)}</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                       <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary dark:text-blue-400 hover:underline text-left">
