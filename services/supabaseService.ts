@@ -99,6 +99,8 @@ export const createUserProfile = async (
 
 // Replace the createClientProfile function in supabaseService.ts with this:
 
+// Replace your createClientProfile function with this ultra-fixed version:
+
 export const createClientProfile = async (
   name: string,
   email: string,
@@ -107,6 +109,10 @@ export const createClientProfile = async (
   currentAddress?: string,
   createdBy?: string
 ) => {
+  // Store the tokens in variables that won't be affected by session changes
+  let savedAccessToken: string | undefined;
+  let savedRefreshToken: string | undefined;
+  
   try {
     console.log('🔵 Creating client profile for:', email);
     
@@ -118,7 +124,12 @@ export const createClientProfile = async (
       return { data: null, error: new Error('No active session') };
     }
     
-    console.log('🔵 Saved current broker/admin session:', currentSession.user.email);
+    // Store tokens in local variables
+    savedAccessToken = currentSession.access_token;
+    savedRefreshToken = currentSession.refresh_token;
+    const savedUserEmail = currentSession.user.email;
+    
+    console.log('🔵 Saved current broker/admin session:', savedUserEmail);
     
     // Create auth user (this will auto-login as the new user)
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -140,46 +151,41 @@ export const createClientProfile = async (
 
     console.log('✅ Client auth user created:', authData.user.id);
     
-    // IMMEDIATELY restore the broker/admin session
-    const { error: restoreError } = await supabase.auth.setSession({
-      access_token: currentSession.access_token,
-      refresh_token: currentSession.refresh_token,
+    // IMMEDIATELY restore the broker/admin session (first attempt)
+    await supabase.auth.setSession({
+      access_token: savedAccessToken,
+      refresh_token: savedRefreshToken,
     });
+    console.log('✅ First session restore attempted');
     
-    if (restoreError) {
-      console.error('❌ Error restoring session:', restoreError);
-    } else {
-      console.log('✅ Restored broker/admin session immediately');
-    }
+    // Small delay to let it settle
+    await new Promise(resolve => setTimeout(resolve, 100));
     
-    // VERIFY the session was restored correctly
-    const { data: { session: verifiedSession } } = await supabase.auth.getSession();
-    
-    if (verifiedSession?.user?.email !== currentSession.user.email) {
-      console.warn('⚠️ Session not restored correctly, trying again...');
+    // VERIFY and retry if needed (up to 3 times)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const { data: { session: checkSession } } = await supabase.auth.getSession();
       
-      // Try restoring again
+      if (checkSession?.user?.email === savedUserEmail) {
+        console.log(`✅ Session verified on attempt ${attempt}`);
+        break;
+      }
+      
+      console.warn(`⚠️ Session not correct on attempt ${attempt}, retrying...`);
+      
       await supabase.auth.setSession({
-        access_token: currentSession.access_token,
-        refresh_token: currentSession.refresh_token,
+        access_token: savedAccessToken,
+        refresh_token: savedRefreshToken,
       });
       
-      // Wait a moment and check again
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 150));
       
-      const { data: { session: finalSession } } = await supabase.auth.getSession();
-      
-      if (finalSession?.user?.email !== currentSession.user.email) {
-        console.error('❌ Failed to restore session after retry');
-      } else {
-        console.log('✅ Session restored after retry');
+      if (attempt === 3) {
+        console.error('❌ Failed to restore session after 3 attempts');
       }
-    } else {
-      console.log('✅ Session verified as broker/admin:', verifiedSession.user.email);
     }
     
     // Wait for the auth user to be committed to the database
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     // Update/create the profile with additional data
     const { data, error } = await supabase
@@ -203,10 +209,26 @@ export const createClientProfile = async (
     }
 
     console.log('✅ Client profile created successfully');
+    
+    // FINAL session restore to be absolutely sure
+    await supabase.auth.setSession({
+      access_token: savedAccessToken,
+      refresh_token: savedRefreshToken,
+    });
+    console.log('✅ Final session restore completed');
 
     return { data: data || authData.user, error: null };
   } catch (err) {
     console.error('❌ Exception in createClientProfile:', err);
+    
+    // Even on error, try to restore the session
+    if (savedAccessToken && savedRefreshToken) {
+      await supabase.auth.setSession({
+        access_token: savedAccessToken,
+        refresh_token: savedRefreshToken,
+      });
+    }
+    
     return { data: null, error: err as Error };
   }
 };
