@@ -43,10 +43,10 @@ Portal Link: ${window.location.origin}
 IMPORTANT: For security reasons, you will be required to change your password upon first login.
 
 Through your portal, you can:
-• View real-time updates on your application status
-• Access important documents and information
-• Track key milestones in your mortgage journey
-• Contact us directly with any questions
+- View real-time updates on your application status
+- Access important documents and information
+- Track key milestones in your mortgage journey
+- Contact us directly with any questions
 
 If you have any questions or need assistance accessing your portal, please don't hesitate to reach out.
 
@@ -54,8 +54,7 @@ Best regards,
 
 ${broker.name}
 ${broker.companyName || ''}
-${broker.contactNumber || ''}
-${broker.email || ''}`;
+${broker.contactNumber || ''}`;
 
       setSubject(defaultSubject);
       setBody(defaultBody);
@@ -74,7 +73,7 @@ ${broker.email || ''}`;
         subject,
         body,
         broker.name,
-        broker.email || 'no-reply@mortgagetracker.net'
+        'no-reply@mortgagetracker.net'
       );
 
       if (result.success) {
