@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Application, ApplicationStatus, STATUS_ORDER, STATUS_DISPLAY_NAMES, Solicitor } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Application, ApplicationStatus, STATUS_DISPLAY_NAMES, STATUS_ORDER, Solicitor } from '../../types';
 
 interface ApplicationModalProps {
   isOpen: boolean;
@@ -31,28 +31,19 @@ const emptyApplication: FormData = {
   solicitor: emptySolicitor
 };
 
-
 const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, onSave, application }) => {
   const [formData, setFormData] = useState<FormData>(emptyApplication);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [temporaryClientPassword, setTemporaryClientPassword] = useState('');
 
-  // Generate random password for client
-  const generatePassword = () => {
-    return `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
-  };
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (application) {
       const { id, history, clientId, brokerId, ...editableData } = application;
       setFormData({
         ...editableData,
         solicitor: editableData.solicitor || emptySolicitor,
       });
-      setTemporaryClientPassword(''); // No password for editing
     } else {
       setFormData(emptyApplication);
-      setTemporaryClientPassword(generatePassword()); // Auto-generate for new client
     }
     setFormErrors({});
   }, [application, isOpen]);
@@ -87,7 +78,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!formData.clientName.trim()) errors.clientName = "Client name is required.";
-    if (!application) { // Only validate email on create
+    if (!application) {
         if (!formData.clientEmail.trim()) {
             errors.clientEmail = "Client email is required.";
         } else if (!/\S+@\S+\.\S+/.test(formData.clientEmail)) {
@@ -102,7 +93,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
     if (formData.interestRate < 0) errors.interestRate = "Interest rate cannot be a negative number.";
     if (!formData.interestRateExpiryDate) errors.interestRateExpiryDate = "Rate expiry date is required.";
 
-    // Solicitor fields are optional, but if an email is provided, it must be valid.
     if (formData.solicitor.email && !/\S+@\S+\.\S+/.test(formData.solicitor.email)) {
         errors.solicitorEmail = "Solicitor email is invalid.";
     }
@@ -118,7 +108,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
     const submissionData = {
       ...(application ? { id: application.id } : {}),
       ...formData,
-      ...((!application && temporaryClientPassword) ? { clientPassword: temporaryClientPassword } : {}),
     };
 
     onSave(submissionData);
@@ -191,35 +180,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
                 {formErrors.clientCurrentAddress && <p className="text-red-500 text-xs mt-1">{formErrors.clientCurrentAddress}</p>}
               </div>
 
-              {!application && (
-                <div className="md:col-span-2">
-                  <label htmlFor="temporaryClientPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Temporary Client Password</label>
-                  <div className="mt-1 flex rounded-md shadow-sm">
-                    <input
-                      type="text"
-                      id="temporaryClientPassword"
-                      value={temporaryClientPassword}
-                      readOnly
-                      className="block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-l-md py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm bg-yellow-50 dark:bg-yellow-900/20 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setTemporaryClientPassword(generatePassword())}
-                      className="inline-flex items-center px-3 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm hover:bg-gray-100 dark:hover:bg-gray-500"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Share this password with the client. They must change it on first login.</p>
-                </div>
-              )}
-
               <div className="md:col-span-2 pt-4 border-t dark:border-gray-700">
                  <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">Property &amp; Mortgage Details</h3>
               </div>
-
 
               <div className="md:col-span-2">
                 <label htmlFor="propertyAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Address (for mortgage)</label>
@@ -316,17 +279,14 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, on
                <div>
                 <label htmlFor="firmName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Firm Name</label>
                 <input type="text" id="firmName" name="firmName" value={formData.solicitor.firmName} onChange={handleSolicitorChange} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm" />
-                {formErrors.solicitorFirmName && <p className="text-red-500 text-xs mt-1">{formErrors.solicitorFirmName}</p>}
               </div>
               <div>
                 <label htmlFor="solicitorName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Solicitor Name</label>
                 <input type="text" id="solicitorName" name="solicitorName" value={formData.solicitor.solicitorName} onChange={handleSolicitorChange} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm" />
-                {formErrors.solicitorName && <p className="text-red-500 text-xs mt-1">{formErrors.solicitorName}</p>}
               </div>
               <div>
                 <label htmlFor="solicitorContact" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Contact Number</label>
                 <input type="tel" id="solicitorContact" name="contactNumber" value={formData.solicitor.contactNumber} onChange={handleSolicitorChange} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm" />
-                {formErrors.solicitorContact && <p className="text-red-500 text-xs mt-1">{formErrors.solicitorContact}</p>}
               </div>
               <div>
                 <label htmlFor="solicitorEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
