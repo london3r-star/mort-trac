@@ -6,7 +6,7 @@ import HistoryModal from '../ui/HistoryModal';
 import SolicitorInfoModal from '../ui/SolicitorInfoModal';
 import NotesModal from '../ui/NotesModal';
 import EmailClientModal from '../ui/EmailClientModal';
-import ResetPasswordModal from '../ui/ResetPasswordModal';
+import PortalInviteModal from '../ui/PortalInviteModal';
 
 interface BrokerDashboardProps {
   user: User;
