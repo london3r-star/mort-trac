@@ -1,587 +1,310 @@
-import React, { useState, useMemo } from 'react';
-import { User, Application, ApplicationStatus, Role, STATUS_ORDER, STATUS_DISPLAY_NAMES } from '../../types';
-import ApplicationModal from '../ui/ApplicationModal';
-import ConfirmModal from '../ui/ConfirmModal';
-import HistoryModal from '../ui/HistoryModal';
-import SolicitorInfoModal from '../ui/SolicitorInfoModal';
-import NotesModal from '../ui/NotesModal';
-import EmailClientModal from '../ui/EmailClientModal';
-import PortalInviteModal from '../ui/PortalInviteModal';
+import React, { useState, useEffect } from 'react';
+import { Application, User, AppStage } from '../../types';
+import { getAllApplications, getBrokerInfo, deleteApplication } from '../../services/supabaseService';
+import ApplicationCard from './ApplicationCard';
+import Sidebar from './Sidebar';
+import BrokerModal from './BrokerModal';
+import ClientModal from './ClientModal';
+import StageUpdateModal from './StageUpdateModal';
+import PortalInviteModal from './PortalInviteModal';
+import { useNavigate } from 'react-router-dom';
 
 interface BrokerDashboardProps {
   user: User;
-  viewedBroker?: User;
-  applications: Application[];
-  onUpdateApplications: (updatedApplications: Application[]) => void;
-  users: User[];
-  setUsers: (users: User[]) => void;
-  onViewBrokerDashboard?: (broker: User) => void;
+  onLogout: () => void;
 }
 
-type SortableKeys = 'clientName' | 'mortgageLender' | 'loanAmount' | 'interestRateExpiryDate' | 'status' | 'solicitor.firmName';
+// Helper function to generate temporary password
+const generateTemporaryPassword = (): string => {
+  const length = 12;
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+};
 
-const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, viewedBroker, applications, onUpdateApplications, users, setUsers, onViewBrokerDashboard }) => {
+const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => {
+  const navigate = useNavigate();
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [filteredApplications, setFilteredApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedStage, setSelectedStage] = useState<AppStage | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingApplication, setEditingApplication] = useState<Application | null>(null);
-  const [deletingApplicationId, setDeletingApplicationId] = useState<string | null>(null);
-  const [historyModalApp, setHistoryModalApp] = useState<Application | null>(null);
-  const [viewingSolicitorApp, setViewingSolicitorApp] = useState<Application | null>(null);
-  const [notesModalApp, setNotesModalApp] = useState<Application | null>(null);
-  const [emailModalApp, setEmailModalApp] = useState<Application | null>(null);
-  const [portalInviteApp, setPortalInviteApp] = useState<Application | null>(null);
-  const [clientPasswords, setClientPasswords] = useState<Record<string, string>>({});
-  const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>(null);
-  const [emailedClients, setEmailedClients] = useState<Set<string>>(new Set());
-  const [invitedClients, setInvitedClients] = useState<Set<string>>(new Set());
-  const [isCreating, setIsCreating] = useState(false);
+  const [isBrokerModalOpen, setIsBrokerModalOpen] = useState(false);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [isStageUpdateModalOpen, setIsStageUpdateModalOpen] = useState(false);
+  const [isPortalInviteModalOpen, setIsPortalInviteModalOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [brokerInfo, setBrokerInfo] = useState<User | null>(null);
 
-  const displayUser = viewedBroker || user;
+  useEffect(() => {
+    fetchApplications();
+    fetchBrokerInfo();
+  }, [user.id]);
 
-  const shouldShowBrokerColumn = useMemo(() => {
-    return (user.isAdmin || user.isTeamManager || user.isBrokerAdmin) && !viewedBroker;
-  }, [user, viewedBroker]);
+  useEffect(() => {
+    filterApplications();
+  }, [applications, selectedStage, searchTerm]);
 
-  const getBrokerName = (brokerId: string) => {
-    const broker = users.find(u => u.id === brokerId);
-    return broker?.name || 'Unknown';
-  };
-
-  const handleBrokerClick = (brokerId: string) => {
-    if (!onViewBrokerDashboard) return;
-    const broker = users.find(u => u.id === brokerId);
-    if (broker && broker.id !== user.id) {
-      onViewBrokerDashboard(broker);
+  const fetchApplications = async () => {
+    setLoading(true);
+    try {
+      const apps = await getAllApplications(user.id);
+      setApplications(apps);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  console.log('🔍 Debug Info:', {
-    userName: user.name,
-    isAdmin: user.isAdmin,
-    isTeamManager: user.isTeamManager,
-    isBrokerAdmin: user.isBrokerAdmin,
-    companyName: user.companyName,
-    totalApplications: applications.length,
-    totalUsers: users.length
-  });
-  
-  const brokerVisibleApplications = useMemo(() => {
-    if (viewedBroker) {
-      return applications.filter(app => app.brokerId === viewedBroker.id);
+  const fetchBrokerInfo = async () => {
+    try {
+      const info = await getBrokerInfo(user.id);
+      setBrokerInfo(info);
+    } catch (error) {
+      console.error('Error fetching broker info:', error);
     }
-
-    if (user.isAdmin) {
-      return applications;
-    }
-    
-    if (user.isTeamManager || user.isBrokerAdmin) {
-      const companyBrokerIds = users
-        .filter(u => u.role === Role.BROKER && u.companyName === user.companyName)
-        .map(u => u.id);
-      return applications.filter(app => companyBrokerIds.includes(app.brokerId));
-    }
-
-    return applications.filter(app => app.brokerId === user.id);
-  }, [applications, user, users, viewedBroker]);
-
-  const statusCounts = useMemo(() => {
-    const counts = STATUS_ORDER.reduce((acc, status) => {
-        acc[status] = 0;
-        return acc;
-    }, {} as Record<ApplicationStatus, number>);
-
-    brokerVisibleApplications.forEach(app => {
-        if (counts[app.status] !== undefined) {
-            counts[app.status]++;
-        }
-    });
-
-    return counts;
-  }, [brokerVisibleApplications]);
-
-  const sortedAndFilteredApplications = useMemo(() => {
-    let filtered = brokerVisibleApplications;
-
-    if (statusFilter) {
-      filtered = filtered.filter(app => app.status === statusFilter);
-    }
-
-    if (searchTerm) {
-        const lowercasedFilter = searchTerm.toLowerCase();
-        filtered = filtered.filter(app => {
-            return (
-                app.clientName.toLowerCase().includes(lowercasedFilter) ||
-                app.clientEmail.toLowerCase().includes(lowercasedFilter) ||
-                app.propertyAddress.toLowerCase().includes(lowercasedFilter) ||
-                app.mortgageLender.toLowerCase().includes(lowercasedFilter) ||
-                (app.solicitor && app.solicitor.firmName.toLowerCase().includes(lowercasedFilter)) ||
-                STATUS_DISPLAY_NAMES[app.status].toLowerCase().includes(lowercasedFilter)
-            );
-        });
-    }
-    
-    if (sortConfig !== null) {
-      const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
-      
-      filtered.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-        
-        if (sortConfig.key === 'status') {
-            aValue = STATUS_ORDER.indexOf(a.status);
-            bValue = STATUS_ORDER.indexOf(b.status);
-        } else {
-            aValue = getNestedValue(a, sortConfig.key);
-            bValue = getNestedValue(b, sortConfig.key);
-        }
-
-        if (aValue === undefined || aValue === null) return 1;
-        if (bValue === undefined || bValue === null) return -1;
-        
-        let comparison = 0;
-        if (aValue > bValue) {
-            comparison = 1;
-        } else if (aValue < bValue) {
-            comparison = -1;
-        }
-        
-        return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
-      });
-    } else {
-      filtered.sort((a, b) => {
-        const aDate = a.history && a.history.length > 0 ? new Date(a.history[a.history.length-1].date).getTime() : 0;
-        const bDate = b.history && b.history.length > 0 ? new Date(b.history[b.history.length-1].date).getTime() : 0;
-        return bDate - aDate;
-      });
-    }
-
-    return filtered;
-
-  }, [brokerVisibleApplications, searchTerm, sortConfig, statusFilter]);
-
-  const requestSort = (key: SortableKeys) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
   };
 
-  const getSortIndicator = (key: SortableKeys) => {
-    if (!sortConfig || sortConfig.key !== key) {
-      return null;
+  const filterApplications = () => {
+    let filtered = applications;
+
+    if (selectedStage !== 'all') {
+      filtered = filtered.filter((app) => app.appStage === selectedStage);
     }
-    return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
-  };
 
-  const handleOpenCreateModal = () => {
-    setEditingApplication(null);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEditModal = (app: Application) => {
-    setEditingApplication(app);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingApplication(null);
-  };
-
-  const handleSaveApplication = async (appData: Omit<Application, 'id' | 'history' | 'clientId' | 'brokerId'> & { id?: string; clientPassword?: string }) => {
-    if (appData.id) {
-      const { updateApplication } = await import('../../services/supabaseService');
-      const { data, error } = await updateApplication(appData.id, appData);
-      
-      if (error) {
-        console.error('Error updating application:', error);
-        alert('Failed to update application. Please try again.');
-        return;
-      }
-      
-      if (data) {
-        const updatedApplications = applications.map(app =>
-          app.id === appData.id ? data : app
-        );
-        onUpdateApplications(updatedApplications);
-      }
-    } else {
-      setIsCreating(true);
-      
-      try {
-        const { createClientProfile, createApplication } = await import('../../services/supabaseService');
-        const clientUser = users.find(u => u.email.toLowerCase() === appData.clientEmail.toLowerCase());
-        let clientId: string;
-        let temporaryPassword = '';
-        
-        if (!clientUser) {
-          temporaryPassword = `Client${Math.random().toString(36).slice(2, 10)}!${Math.floor(Math.random() * 100)}`;
-          
-          const { data: newClientData, error: clientError } = await createClientProfile(
-            appData.clientName,
-            appData.clientEmail,
-            temporaryPassword,
-            appData.clientContactNumber,
-            appData.clientCurrentAddress,
-            displayUser.id
-          );
-          
-          if (clientError || !newClientData) {
-            console.error('Error creating client:', clientError);
-            alert('Failed to create client profile. Please try again.');
-            setIsCreating(false);
-            return;
-          }
-          
-          const newClient: User = {
-            id: newClientData.id,
-            name: newClientData.name || appData.clientName,
-            email: newClientData.email || appData.clientEmail,
-            role: Role.CLIENT,
-            contactNumber: newClientData.contact_number || appData.clientContactNumber,
-            currentAddress: newClientData.current_address || appData.clientCurrentAddress,
-          };
-          setUsers([...users, newClient]);
-          clientId = newClientData.id;
-          
-          setClientPasswords(prev => ({
-            ...prev,
-            [clientId]: temporaryPassword
-          }));
-        } else {
-          clientId = clientUser.id;
-        }
-
-        const newApplicationData: Omit<Application, 'id' | 'history'> = {
-          ...appData,
-          clientId: clientId,
-          brokerId: displayUser.id,
-          notes: appData.notes || '',
-        };
-        
-        const { data: newApp, error: appError } = await createApplication(newApplicationData);
-        
-        if (appError || !newApp) {
-          console.error('Error creating application:', appError);
-          alert('Failed to create application. Please try again.');
-          setIsCreating(false);
-          return;
-        }
-        
-        onUpdateApplications([...applications, newApp]);
-      } finally {
-        setIsCreating(false);
-      }
-    }
-    handleCloseModal();
-  };
-
-  const handleUpdateStatus = async (appId: string, newStatus: ApplicationStatus) => {
-    const app = applications.find(a => a.id === appId);
-    if (!app || app.status === newStatus) return;
-    
-    const { updateApplicationStatus } = await import('../../services/supabaseService');
-    const { data, error } = await updateApplicationStatus(appId, newStatus);
-    
-    if (error) {
-      console.error('Error updating status:', error);
-      alert('Failed to update status. Please try again.');
-      return;
-    }
-    
-    if (data) {
-      const updatedApplications = applications.map(app =>
-        app.id === appId ? data : app
+    if (searchTerm.trim() !== '') {
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (app) =>
+          app.clientName.toLowerCase().includes(lowerSearch) ||
+          app.propertyAddress.toLowerCase().includes(lowerSearch) ||
+          app.clientEmail.toLowerCase().includes(lowerSearch)
       );
-      onUpdateApplications(updatedApplications);
     }
+
+    setFilteredApplications(filtered);
   };
 
-  const handleDeleteApplication = async () => {
-    if (deletingApplicationId) {
-      const { deleteApplication } = await import('../../services/supabaseService');
-      const { error } = await deleteApplication(deletingApplicationId);
-      
-      if (error) {
+  const handleAddClient = () => {
+    setIsClientModalOpen(true);
+  };
+
+  const handleEditApplication = (app: Application) => {
+    setSelectedApplication(app);
+    setIsClientModalOpen(true);
+  };
+
+  const handleDeleteApplication = async (appId: string) => {
+    if (window.confirm('Are you sure you want to delete this application? This action cannot be undone.')) {
+      try {
+        await deleteApplication(appId);
+        fetchApplications();
+      } catch (error) {
         console.error('Error deleting application:', error);
         alert('Failed to delete application. Please try again.');
-        return;
       }
-      
-      const updatedApplications = applications.filter(app => app.id !== deletingApplicationId);
-      onUpdateApplications(updatedApplications);
-      setDeletingApplicationId(null);
     }
   };
 
-  const handleSendPortalInvite = () => {
-    setInvitedClients(prev => new Set(prev).add(portalInviteApp!.id));
-    setPortalInviteApp(null);
+  const handleViewApplication = (app: Application) => {
+    navigate(`/broker/application/${app.id}`, { state: { application: app, broker: user } });
   };
 
-  const handleSaveNotes = async (appId: string, newNotes: string) => {
-    const { updateApplication } = await import('../../services/supabaseService');
-    const { data, error } = await updateApplication(appId, { notes: newNotes });
-    
-    if (error) {
-      console.error('Error updating notes:', error);
-      alert('Failed to update notes. Please try again.');
-      return;
-    }
-    
-    if (data) {
-      const updatedApplications = applications.map(app => 
-        app.id === appId ? data : app
-      );
-      onUpdateApplications(updatedApplications);
-    }
-    setNotesModalApp(null);
+  const handleUpdateStage = (app: Application) => {
+    setSelectedApplication(app);
+    setIsStageUpdateModalOpen(true);
   };
-  
-  const handleSendEmail = async (app: Application) => {
-    const { updateApplicationStatus } = await import('../../services/supabaseService');
-    const { data, error } = await updateApplicationStatus(app.id, ApplicationStatus.RATE_EXPIRY_REMINDER_SENT);
+
+  const handleSendPortalInvite = (app: Application) => {
+    // Generate temporary password when opening the modal
+    const newTempPassword = generateTemporaryPassword();
+    setTemporaryPassword(newTempPassword);
     
-    if (error) {
-      console.error('Error sending email notification:', error);
-      alert('Failed to send notification. Please try again.');
-      return;
-    }
-    
-    if (data) {
-      const updatedApplications = applications.map(currentApp =>
-        currentApp.id === app.id ? data : currentApp
-      );
-      onUpdateApplications(updatedApplications);
-    }
-    
-    alert(`An expiry notification has been sent to ${app.clientName}.`);
-    setEmailedClients(prev => new Set(prev).add(app.id));
-    setEmailModalApp(null);
+    setSelectedApplication(app);
+    setIsPortalInviteModalOpen(true);
   };
+
+  const handleClientModalClose = () => {
+    setIsClientModalOpen(false);
+    setSelectedApplication(null);
+  };
+
+  const handleClientSaved = () => {
+    setIsClientModalOpen(false);
+    setSelectedApplication(null);
+    fetchApplications();
+  };
+
+  const handleStageUpdateModalClose = () => {
+    setIsStageUpdateModalOpen(false);
+    setSelectedApplication(null);
+  };
+
+  const handleStageUpdated = () => {
+    setIsStageUpdateModalClose(false);
+    setSelectedApplication(null);
+    fetchApplications();
+  };
+
+  const handlePortalInviteSent = () => {
+    setIsPortalInviteModalOpen(false);
+    setSelectedApplication(null);
+    setTemporaryPassword(''); // Clear password after sending
+    fetchApplications();
+  };
+
+  const handlePortalInviteModalClose = () => {
+    setIsPortalInviteModalOpen(false);
+    setSelectedApplication(null);
+    setTemporaryPassword(''); // Clear password when closing
+  };
+
+  const stageColorMap: Record<AppStage, string> = {
+    new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'documents-requested': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    'submitted-to-lender': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    'approved-in-principle': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    'full-application': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+    'mortgage-offer': 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+    completed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto">
-      {isCreating && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl text-center">
-            <div className="animate-spin h-12 w-12 border-4 border-brand-secondary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">Creating application...</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Please wait</p>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <Sidebar
+        user={user}
+        onLogout={onLogout}
+        selectedStage={selectedStage}
+        onStageSelect={setSelectedStage}
+        applications={applications}
+      />
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white dark:bg-gray-800 shadow-sm z-10">
+          <div className="px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-brand-primary dark:text-gray-100">
+                {selectedStage === 'all' ? 'All Applications' : selectedStage.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Manage your mortgage applications
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="Search clients or properties..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full sm:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+              />
+              <button
+                onClick={handleAddClient}
+                className="bg-brand-secondary text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-colors whitespace-nowrap"
+              >
+                + Add Client
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        </header>
 
-       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-brand-dark dark:text-gray-100">
-                        {viewedBroker ? `${viewedBroker.name}'s Dashboard` : `${user.name}'s Dashboard`}
-                        {viewedBroker && <span className="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">(Viewing as {user.name})</span>}
-                    </h1>
-                    {displayUser.companyName && (
-                        <p className="text-md text-gray-600 dark:text-gray-400 font-medium">{displayUser.companyName}</p>
-                    )}
-                </div>
-                <div className="w-full md:w-auto flex flex-col sm:flex-row gap-4">
-                <input
-                    type="text"
-                    placeholder="Search by name, email, etc..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
+          {filteredApplications.length === 0 ? (
+            <div className="text-center py-12">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | '')}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
-                    aria-label="Filter by status"
-                >
-                    <option value="">All Statuses</option>
-                    {STATUS_ORDER.map(status => (
-                        <option key={status} value={status}>
-                            {STATUS_DISPLAY_NAMES[status]}
-                        </option>
-                    ))}
-                </select>
-                <button
-                    onClick={handleOpenCreateModal}
-                    className="px-4 py-2 bg-brand-secondary text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition-colors flex-shrink-0"
-                >
-                    New Application
-                </button>
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No applications</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {searchTerm ? 'No applications match your search.' : 'Get started by adding a new client.'}
+              </p>
+              {!searchTerm && (
+                <div className="mt-6">
+                  <button
+                    onClick={handleAddClient}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-secondary hover:bg-opacity-90"
+                  >
+                    + Add Client
+                  </button>
                 </div>
+              )}
             </div>
-       </div>
-
-       <div className="mb-8">
-            <h2 className="text-xl font-semibold text-brand-dark dark:text-gray-200 mb-4">Pipeline Overview</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                {STATUS_ORDER.map(status => (
-                    <div key={status} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-center">
-                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate" title={STATUS_DISPLAY_NAMES[status]}>{STATUS_DISPLAY_NAMES[status]}</p>
-                        <p className="text-3xl font-bold text-brand-primary dark:text-blue-400 mt-2">{statusCounts[status]}</p>
-                    </div>
-                ))}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredApplications.map((app) => (
+                <ApplicationCard
+                  key={app.id}
+                  application={app}
+                  onEdit={handleEditApplication}
+                  onDelete={handleDeleteApplication}
+                  onView={handleViewApplication}
+                  onUpdateStage={handleUpdateStage}
+                  onSendPortalInvite={handleSendPortalInvite}
+                  stageColorMap={stageColorMap}
+                />
+              ))}
             </div>
-        </div>
+          )}
+        </main>
+      </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-           <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th onClick={() => requestSort('clientName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Client / Property{getSortIndicator('clientName')}</th>
-                {shouldShowBrokerColumn && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Broker</th>
-                )}
-                <th onClick={() => requestSort('mortgageLender')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Lender{getSortIndicator('mortgageLender')}</th>
-                <th onClick={() => requestSort('solicitor.firmName')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Solicitor Firm{getSortIndicator('solicitor.firmName')}</th>
-                <th onClick={() => requestSort('loanAmount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Loan{getSortIndicator('loanAmount')}</th>
-                <th onClick={() => requestSort('interestRateExpiryDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer">Rate / Expiry{getSortIndicator('interestRateExpiryDate')}</th>
-                <th onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px] cursor-pointer">Status{getSortIndicator('status')}</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {sortedAndFilteredApplications.map(app => {
-                const sixMonthsFromNow = new Date();
-                sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-                const expiryDate = new Date(app.interestRateExpiryDate);
-                const isExpiringSoon = expiryDate < sixMonthsFromNow;
-
-                return (
-                  <tr key={app.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button onClick={() => setHistoryModalApp(app)} className="text-sm font-semibold text-brand-secondary dark:text-blue-400 hover:underline text-left">
-                          {app.clientName}
-                      </button>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{app.propertyAddress}</div>
-                    </td>
-                    {shouldShowBrokerColumn && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                        {onViewBrokerDashboard && app.brokerId !== user.id ? (
-                          <button
-                            onClick={() => handleBrokerClick(app.brokerId)}
-                            className="text-brand-secondary dark:text-blue-400 hover:underline font-medium"
-                          >
-                            {getBrokerName(app.brokerId)}
-                          </button>
-                        ) : (
-                          <span>{getBrokerName(app.brokerId)}</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{app.mortgageLender}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                      <button onClick={() => setViewingSolicitorApp(app)} className="text-brand-secondary dark:text-blue-400 hover:underline text-left">
-                          {app.solicitor.firmName}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(app.loanAmount)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-700 dark:text-gray-300">{app.interestRate.toFixed(2)}%</div>
-                      <div className={`text-xs ${isExpiringSoon ? 'text-red-500 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
-                        Expires: {new Date(app.interestRateExpiryDate).toLocaleDateString('en-GB')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                       <select
-                          value={app.status}
-                          onChange={(e) => handleUpdateStatus(app.id, e.target.value as ApplicationStatus)}
-                          className="w-full pl-3 pr-10 py-2 text-sm bg-brand-primary dark:bg-gray-600 border-brand-secondary dark:border-gray-500 text-white focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary rounded-md"
-                        >
-                          {STATUS_ORDER.map(status => (
-                            <option key={status} value={status}>
-                              {STATUS_DISPLAY_NAMES[status]}
-                            </option>
-                          ))}
-                        </select>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {isExpiringSoon && (
-                        <button
-                          onClick={() => setEmailModalApp(app)}
-                          disabled={emailedClients.has(app.id)}
-                          className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        >
-                          {emailedClients.has(app.id) ? 'Emailed' : 'Email'}
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => setPortalInviteApp(app)} 
-                        disabled={invitedClients.has(app.id)}
-                        className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 mr-4 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        title="Send Portal Invitation"
-                      >
-                        {invitedClients.has(app.id) ? 'Invited' : 'Invite'}
-                      </button>
-                      <button onClick={() => setNotesModalApp(app)} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-4">Notes</button>
-                      <button onClick={() => handleOpenEditModal(app)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4">Edit</button>
-                      <button onClick={() => setDeletingApplicationId(app.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-            {sortedAndFilteredApplications.length === 0 && (
-                 <div className="text-center py-12">
-                    <p className="text-gray-500 dark:text-gray-400">No applications found.</p>
-                </div>
-            )}
-        </div>
-
-      <ApplicationModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onSave={handleSaveApplication}
-        application={editingApplication}
+      <BrokerModal
+        isOpen={isBrokerModalOpen}
+        onClose={() => setIsBrokerModalOpen(false)}
+        onSave={(brokerData) => {
+          console.log('Broker saved:', brokerData);
+          setIsBrokerModalOpen(false);
+        }}
+        existingUsers={[]}
+        loggedInUser={user}
       />
 
-      <ConfirmModal
-        isOpen={!!deletingApplicationId}
-        onClose={() => setDeletingApplicationId(null)}
-        onConfirm={handleDeleteApplication}
-        title="Delete Application"
-        message="Are you sure you want to delete this application? This action cannot be undone."
+      <ClientModal
+        isOpen={isClientModalOpen}
+        onClose={handleClientModalClose}
+        onSave={handleClientSaved}
+        brokerId={user.id}
+        applicationToEdit={selectedApplication}
       />
 
-      <HistoryModal
-        isOpen={!!historyModalApp}
-        onClose={() => setHistoryModalApp(null)}
-        application={historyModalApp}
+      <StageUpdateModal
+        isOpen={isStageUpdateModalOpen}
+        onClose={handleStageUpdateModalClose}
+        onUpdate={handleStageUpdated}
+        application={selectedApplication}
+        stageColorMap={stageColorMap}
       />
-
-      <SolicitorInfoModal
-        isOpen={!!viewingSolicitorApp}
-        onClose={() => setViewingSolicitorApp(null)}
-        application={viewingSolicitorApp}
-      />
-
-      <NotesModal
-        isOpen={!!notesModalApp}
-        onClose={() => setNotesModalApp(null)}
-        onSave={(newNotes) => handleSaveNotes(notesModalApp!.id, newNotes)}
-        application={notesModalApp}
-      />
-        
-      <EmailClientModal
-        isOpen={!!emailModalApp}
-        onClose={() => setEmailModalApp(null)}
-        onSend={() => handleSendEmail(emailModalApp!)}
-        application={emailModalApp}
-        broker={displayUser}
-       />
 
       <PortalInviteModal
-        isOpen={!!portalInviteApp}
-        onClose={() => setPortalInviteApp(null)}
-        onSent={handleSendPortalInvite}
-        application={portalInviteApp}
-        broker={displayUser}
-        temporaryPassword={portalInviteApp ? (clientPasswords[portalInviteApp.clientId] || 'Password sent separately') : ''}
+        isOpen={isPortalInviteModalOpen}
+        onClose={handlePortalInviteModalClose}
+        onSent={handlePortalInviteSent}
+        application={selectedApplication}
+        broker={brokerInfo}
+        temporaryPassword={temporaryPassword}
       />
     </div>
   );
