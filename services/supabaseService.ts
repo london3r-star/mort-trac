@@ -34,32 +34,44 @@ export const adminResetUserPassword = async (
 // Add this function to your supabaseService.ts file (near the sendEmailToClient function)
 
 export const sendPortalInvite = async (
-  to: string,
+  recipientEmail: string,
   subject: string,
   body: string,
-  fromName?: string,
-  fromEmail?: string
-) => {
+  senderName: string,
+  senderEmail: string
+): Promise<{ success: boolean; error?: any }> => {
   try {
+    // First, extract the password from the email body
+    const passwordMatch = body.match(/Password:\s*(.+)/);
+    const temporaryPassword = passwordMatch ? passwordMatch[1].trim() : null;
+
+    if (!temporaryPassword) {
+      throw new Error('Could not extract temporary password from email body');
+    }
+
+    // Reset the client's password to the temporary password
+    await resetClientPassword(recipientEmail, temporaryPassword);
+
+    // Now send the email with the portal invite
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to,
+        to: recipientEmail,
         subject,
-        body,
-        fromName,
-        fromEmail,
+        html: body.replace(/\n/g, '<br>'),
+        senderName,
+        senderEmail,
       },
     });
 
     if (error) {
-      console.error('Error sending portal invite:', error);
+      console.error('Error invoking send-email function:', error);
       return { success: false, error };
     }
 
-    return { success: true, data };
-  } catch (err) {
-    console.error('Exception sending portal invite:', err);
-    return { success: false, error: err };
+    return { success: true };
+  } catch (error) {
+    console.error('Error in sendPortalInvite:', error);
+    return { success: false, error };
   }
 };
 
@@ -494,6 +506,48 @@ export const deleteUser = async (userId: string) => {
     .eq('id', userId);
 
   return { error };
+};
+
+// Reset client password (for portal invites)
+export const resetClientPassword = async (clientEmail: string, newPassword: string): Promise<void> => {
+  try {
+    // First, get the client's user ID from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', clientEmail)
+      .eq('role', 'client')
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error('Client not found');
+    }
+
+    // Update the user's password in Supabase Auth
+    // Note: This requires admin privileges, so you'll need to use the service role key
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      profile.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Set the must_change_password flag
+    const { error: flagError } = await supabase
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', profile.id);
+
+    if (flagError) {
+      throw flagError;
+    }
+
+  } catch (error) {
+    console.error('Error resetting client password:', error);
+    throw error;
+  }
 };
 
 // =====================================================
