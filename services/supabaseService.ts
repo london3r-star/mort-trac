@@ -41,7 +41,7 @@ export const sendPortalInvite = async (
   senderEmail: string
 ): Promise<{ success: boolean; error?: any }> => {
   try {
-    // First, extract the password from the email body
+    // Extract the password from the email body
     const passwordMatch = body.match(/Password:\s*(.+)/);
     const temporaryPassword = passwordMatch ? passwordMatch[1].trim() : null;
 
@@ -62,6 +62,18 @@ export const sendPortalInvite = async (
         senderEmail,
       },
     });
+
+    if (error) {
+      console.error('Error invoking send-email function:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in sendPortalInvite:', error);
+    return { success: false, error };
+  }
+};
 
     if (error) {
       console.error('Error invoking send-email function:', error);
@@ -508,42 +520,27 @@ export const deleteUser = async (userId: string) => {
   return { error };
 };
 
-// Reset client password (for portal invites)
+// Reset client password using Edge Function (secure with service role)
 export const resetClientPassword = async (clientEmail: string, newPassword: string): Promise<void> => {
   try {
-    // First, get the client's user ID from profiles table
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', clientEmail)
-      .eq('role', 'client')
-      .single();
+    const { data, error } = await supabase.functions.invoke('update-client-password', {
+      body: {
+        clientEmail,
+        newPassword,
+      },
+    });
 
-    if (profileError || !profile) {
-      throw new Error('Client not found');
+    if (error) {
+      console.error('Error invoking update-client-password function:', error);
+      throw error;
     }
 
-    // Update the user's password in Supabase Auth
-    // Note: This requires admin privileges, so you'll need to use the service role key
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      profile.id,
-      { password: newPassword }
-    );
-
-    if (updateError) {
-      throw updateError;
+    if (data?.error) {
+      console.error('Error from update-client-password function:', data.error);
+      throw new Error(data.error);
     }
 
-    // Set the must_change_password flag
-    const { error: flagError } = await supabase
-      .from('profiles')
-      .update({ must_change_password: true })
-      .eq('id', profile.id);
-
-    if (flagError) {
-      throw flagError;
-    }
-
+    console.log('Password reset successful:', data);
   } catch (error) {
     console.error('Error resetting client password:', error);
     throw error;
