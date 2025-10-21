@@ -146,7 +146,7 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
   };
 
   const handleStageUpdated = () => {
-    setIsStageUpdateModalClose(false);
+    setIsStageUpdateModalOpen(false); 
     setSelectedApplication(null);
     fetchApplications();
   };
