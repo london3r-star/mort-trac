@@ -75,18 +75,6 @@ export const sendPortalInvite = async (
   }
 };
 
-    if (error) {
-      console.error('Error invoking send-email function:', error);
-      return { success: false, error };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error in sendPortalInvite:', error);
-    return { success: false, error };
-  }
-};
-
 export const sendEmailToClient = async (
   to: string,
   subject: string,
