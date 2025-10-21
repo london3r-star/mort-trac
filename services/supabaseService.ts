@@ -57,9 +57,9 @@ export const sendPortalInvite = async (
       body: {
         to: recipientEmail,
         subject,
-        html: body.replace(/\n/g, '<br>'),
-        senderName,
-        senderEmail,
+        body: body.replace(/\n/g, '<br>'),  // Changed from 'html' to 'body'
+        fromName: senderName,                // Changed from 'senderName' to 'fromName'
+        fromEmail: senderEmail,              // Changed from 'senderEmail' to 'fromEmail'
       },
     });
 
