@@ -26,35 +26,37 @@ const PortalInviteModal: React.FC<PortalInviteModalProps> = ({
 
   useEffect(() => {
     if (application && broker) {
-      const defaultSubject = `Welcome to Your Mortgage Application Portal`;
+      const defaultSubject = `Your Mortgage Application Portal Access - ${application.propertyAddress}`;
       
       const defaultBody = `Dear ${application.clientName},
 
-Welcome to your personalized mortgage application portal!
+Welcome to your personalized mortgage application portal for ${application.propertyAddress}!
 
-We're pleased to invite you to access your secure online portal where you can track the progress of your mortgage application for ${application.propertyAddress} in real-time.
+You can now track your mortgage application progress in real-time through your secure online portal.
 
-Your Portal Access Details:
-━━━━━━━━━━━━━━━━━━━━━━
+🔐 Access Your Portal:
+https://mortgagetracker.net
+
 Email: ${application.clientEmail}
-Temporary Password: ${temporaryPassword}
-Portal Link: ${window.location.origin}
+Password: ${temporaryPassword}
 
-IMPORTANT: For security reasons, you will be required to change your password upon first login.
+Please change your password when you first log in.
 
-Through your portal, you can:
-- View real-time updates on your application status
-- Access important documents and information
-- Track key milestones in your mortgage journey
-- Contact us directly with any questions
+What You Can Do in Your Portal:
+✓ View real-time application updates
+✓ Access important documents
+✓ Track key milestones
+✓ Contact us with questions
 
-If you have any questions or need assistance accessing your portal, please don't hesitate to reach out.
+Need help? Email me at ${broker.email || 'support@mortgagetracker.net'} or call me at ${broker.contactNumber || 'N/A'}.
+
+Please note: Replies to this mailbox are not monitored. For assistance, use the contact details above.
 
 Best regards,
 
 ${broker.name}
 ${broker.companyName || ''}
-${broker.contactNumber || ''}`;
+${broker.email || ''}`;
 
       setSubject(defaultSubject);
       setBody(defaultBody);
@@ -73,7 +75,7 @@ ${broker.contactNumber || ''}`;
         subject,
         body,
         broker.name,
-        'no-reply@mortgagetracker.net'
+        'notifications@mortgagetracker.net'
       );
 
       if (result.success) {
