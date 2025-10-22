@@ -57,9 +57,9 @@ export const sendPortalInvite = async (
       body: {
         to: recipientEmail,
         subject,
-        body: body.replace(/\n/g, '<br>'),  // Changed from 'html' to 'body'
-        fromName: senderName,                // Changed from 'senderName' to 'fromName'
-        fromEmail: senderEmail,              // Changed from 'senderEmail' to 'fromEmail'
+        body: body.replace(/\n/g, '<br>'),
+        fromName: senderName,
+        fromEmail: senderEmail,
       },
     });
 
@@ -508,33 +508,6 @@ export const deleteUser = async (userId: string) => {
   return { error };
 };
 
-// Reset client password using Edge Function (secure with service role)
-export const resetClientPassword = async (clientEmail: string, newPassword: string): Promise<void> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('update-client-password', {
-      body: {
-        clientEmail,
-        newPassword,
-      },
-    });
-
-    if (error) {
-      console.error('Error invoking update-client-password function:', error);
-      throw error;
-    }
-
-    if (data?.error) {
-      console.error('Error from update-client-password function:', data.error);
-      throw new Error(data.error);
-    }
-
-    console.log('Password reset successful:', data);
-  } catch (error) {
-    console.error('Error resetting client password:', error);
-    throw error;
-  }
-};
-
 // =====================================================
 // APPLICATION SERVICE
 // =====================================================
@@ -959,6 +932,33 @@ export const deleteApplication = async (applicationId: string) => {
 // =====================================================
 // REAL-TIME SUBSCRIPTIONS
 // =====================================================
+
+// Reset client password using Edge Function (secure with service role)
+export const resetClientPassword = async (clientEmail: string, newPassword: string): Promise<void> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('update-client-password', {
+      body: {
+        clientEmail,
+        newPassword,
+      },
+    });
+
+    if (error) {
+      console.error('Error invoking update-client-password function:', error);
+      throw error;
+    }
+
+    if (data?.error) {
+      console.error('Error from update-client-password function:', data.error);
+      throw new Error(data.error);
+    }
+
+    console.log('Password reset successful:', data);
+  } catch (error) {
+    console.error('Error resetting client password:', error);
+    throw error;
+  }
+};
 
 export const subscribeToApplications = (callback: (payload: any) => void) => {
   const subscription = supabase
