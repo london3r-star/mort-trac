@@ -326,22 +326,6 @@ export const updateApplicationStage = async (applicationId: string, newStage: st
   if (error) throw error;
 };
 
-// Get all users (for admin purposes)
-export const getAllUsers = async (): Promise<User[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching all users:', error);
-    return [];
-  }
-};
-
 // Get applications by client ID
 export const getApplicationsByClientId = async (clientId: string): Promise<Application[]> => {
   try {
