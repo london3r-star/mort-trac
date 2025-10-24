@@ -57,38 +57,47 @@ const AppContent: React.FC = () => {
   }, [user]);
 
   // Fetch data function
-const fetchData = React.useCallback(async () => {
-  if (!user) {
-    setDataLoading(false);
-    return;
-  }
+  const fetchData = React.useCallback(async () => {
+    if (!user) {
+      setDataLoading(false);
+      return;
+    }
 
-  setDataLoading(true);
-  try {
-    // Fetch all users
-    const usersData = await getAllUsers();
-    setUsers(usersData || []); // Add fallback
+    setDataLoading(true);
+    try {
+      // Fetch all users
+      const usersData = await getAllUsers();
+      setUsers(usersData || []);
 
-    // Fetch applications based on user role
-if (user.role === 'CLIENT') {
-  console.log('📱 Fetching client application');
-  const clientApps = await getApplicationsByClientId(user.id);
-  console.log('📱 Client apps returned:', clientApps); // Move log here
-  console.log('📱 Is array?', Array.isArray(clientApps));
-  console.log('📱 Length:', clientApps?.length);
-  
-  if (Array.isArray(clientApps) && clientApps.length > 0) {
-    setClientApplication(clientApps[0]);
-  } else {
-    setClientApplication(null);
-  }
-} else {
-  console.log('📊 Fetching all applications');
-  const appsData = await getAllApplications(user.id);
-  console.log('📊 Applications received:', appsData?.length || 0, 'apps');
-  setApplications(appsData || []); // Add fallback
-  console.log('✅ Applications set in state');
-}
+      // Fetch applications based on user role
+      if (user.role === 'CLIENT') {
+        console.log('📱 Fetching client application');
+        const clientApps = await getApplicationsByClientId(user.id);
+        console.log('📱 Client apps returned:', clientApps);
+        console.log('📱 Is array?', Array.isArray(clientApps));
+        console.log('📱 Length:', clientApps?.length);
+        
+        if (Array.isArray(clientApps) && clientApps.length > 0) {
+          setClientApplication(clientApps[0]);
+        } else {
+          setClientApplication(null);
+        }
+      } else {
+        console.log('📊 Fetching all applications');
+        const appsData = await getAllApplications(user.id);
+        console.log('📊 Applications received:', appsData?.length || 0, 'apps');
+        setApplications(appsData || []);
+        console.log('✅ Applications set in state');
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setUsers([]);
+      setApplications([]);
+      setClientApplication(null);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user]);
 
   // Fetch data when user is logged in
   useEffect(() => {
