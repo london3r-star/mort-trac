@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Application, STATUS_DISPLAY_NAMES } from '../../types';
+import { User, Application } from '../../types';
 import ProgressTracker from '../ui/ProgressTracker';
 
 interface ClientDashboardProps {
@@ -15,7 +15,6 @@ const InfoCard: React.FC<{ title: string; children: React.ReactNode; className?:
     </div>
 );
 
-
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, application, broker }) => {
   if (!application) {
     return (
@@ -29,21 +28,26 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, application, br
   const {
     propertyAddress,
     loanAmount,
-    status,
-    history,
+    appStage,
     mortgageLender,
     interestRate,
     interestRateExpiryDate,
-    solicitor,
+    solicitorFirmName,
+    solicitorName,
+    solicitorEmail,
+    solicitorContactNumber,
+    updatedAt,
+    createdAt,
   } = application;
-
-  const sortedHistory = [...history]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const sixMonthsFromNow = new Date();
   sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-  const expiryDate = new Date(interestRateExpiryDate);
-  const isExpiringSoon = expiryDate < sixMonthsFromNow;
+  const expiryDate = interestRateExpiryDate ? new Date(interestRateExpiryDate) : null;
+  const isExpiringSoon = expiryDate && expiryDate < sixMonthsFromNow;
+
+  const formatStageName = (stage: string) => {
+    return stage.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  };
 
   return (
     <div className="container mx-auto">
@@ -60,8 +64,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, application, br
             </p>
         </InfoCard>
          <InfoCard title="Current Status">
-            <p className="text-lg font-semibold text-brand-primary dark:text-blue-400">{STATUS_DISPLAY_NAMES[status]}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last updated: {new Date(history[history.length - 1].date).toLocaleDateString()}</p>
+            <p className="text-lg font-semibold text-brand-primary dark:text-blue-400">{formatStageName(appStage)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Last updated: {new Date(updatedAt || createdAt).toLocaleDateString()}
+            </p>
         </InfoCard>
         {broker && (
           <InfoCard title="Your Broker">
@@ -75,53 +81,56 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, application, br
 
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <InfoCard title="Mortgage Details" className="lg:col-span-2">
-            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{mortgageLender}</p>
-            <p className={`text-sm ${isExpiringSoon ? 'text-red-500 font-semibold' : 'text-gray-600 dark:text-gray-400'}`}>
-              {interestRate.toFixed(2)}% until {new Date(interestRateExpiryDate).toLocaleDateString()}
-            </p>
+            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{mortgageLender || 'Not assigned yet'}</p>
+            {interestRate && interestRateExpiryDate && (
+              <p className={`text-sm ${isExpiringSoon ? 'text-red-500 font-semibold' : 'text-gray-600 dark:text-gray-400'}`}>
+                {interestRate}% until {new Date(interestRateExpiryDate).toLocaleDateString()}
+              </p>
+            )}
         </InfoCard>
-         {solicitor && (
+         {solicitorFirmName && (
           <InfoCard title="Your Solicitor">
-              <p className="text-lg font-semibold text-brand-primary dark:text-blue-400">{solicitor.firmName}</p>
-              <p className="text-md text-gray-700 dark:text-gray-300 font-medium">{solicitor.solicitorName}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{solicitor.email}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{solicitor.contactNumber}</p>
+              <p className="text-lg font-semibold text-brand-primary dark:text-blue-400">{solicitorFirmName}</p>
+              {solicitorName && <p className="text-md text-gray-700 dark:text-gray-300 font-medium">{solicitorName}</p>}
+              {solicitorEmail && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{solicitorEmail}</p>}
+              {solicitorContactNumber && <p className="text-sm text-gray-600 dark:text-gray-400">{solicitorContactNumber}</p>}
           </InfoCard>
         )}
       </div>
       
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8 mb-8">
         <h2 className="text-2xl font-bold text-brand-primary dark:text-gray-100 mb-6">Progress Tracker</h2>
-        <ProgressTracker currentStatus={status} />
+        <ProgressTracker currentStatus={appStage} />
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
-        <h2 className="text-2xl font-bold text-brand-primary dark:text-gray-100 mb-6">Application History</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Date Updated
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {sortedHistory.map((item, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
-                    {STATUS_DISPLAY_NAMES[item.status]}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowe-wrap text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(item.date).toLocaleString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 className="text-2xl font-bold text-brand-primary dark:text-gray-100 mb-6">Application Timeline</h2>
+        <div className="space-y-4">
+          <div className="border-l-4 border-brand-primary pl-4 py-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Current Status</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatStageName(appStage)}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Last updated: {new Date(updatedAt || createdAt).toLocaleString('en-GB', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </p>
+          </div>
+          <div className="border-l-4 border-gray-300 pl-4 py-2">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Application Created</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {new Date(createdAt).toLocaleString('en-GB', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </p>
+          </div>
         </div>
       </div>
     </div>
