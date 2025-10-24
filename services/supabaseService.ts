@@ -231,6 +231,22 @@ export const getBrokerInfo = async (brokerId: string): Promise<User | null> => {
   }
 };
 
+// Get all users (for admin purposes)
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    return [];
+  }
+};
+
 // Reset client password using Edge Function (secure with service role)
 export const resetClientPassword = async (clientEmail: string, newPassword: string): Promise<void> => {
   try {
@@ -308,4 +324,111 @@ export const updateApplicationStage = async (applicationId: string, newStage: st
     .eq('id', applicationId);
 
   if (error) throw error;
+};
+
+// Get all users (for admin purposes)
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    return [];
+  }
+};
+
+// Get applications by client ID
+export const getApplicationsByClientId = async (clientId: string): Promise<Application[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map((app: any) => ({
+      id: app.id,
+      clientId: app.client_id,
+      brokerId: app.broker_id,
+      clientName: app.client_name,
+      clientEmail: app.client_email,
+      clientContactNumber: app.client_contact_number,
+      clientCurrentAddress: app.client_current_address,
+      propertyAddress: app.property_address,
+      loanAmount: app.loan_amount,
+      appStage: app.status,
+      mortgageLender: app.mortgage_lender,
+      interestRate: app.interest_rate,
+      interestRateExpiryDate: app.interest_rate_expiry_date,
+      solicitorFirmName: app.solicitor_firm_name,
+      solicitorName: app.solicitor_name,
+      solicitorContactNumber: app.solicitor_contact_number,
+      solicitorEmail: app.solicitor_email,
+      notes: app.notes,
+      createdAt: app.created_at,
+      updatedAt: app.updated_at,
+    }));
+  } catch (error) {
+    console.error('Error fetching applications by client ID:', error);
+    return [];
+  }
+};
+
+// Subscribe to applications changes in real-time
+export const subscribeToApplications = (
+  brokerId: string,
+  callback: (applications: Application[]) => void
+) => {
+  const channel = supabase
+    .channel('applications-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'applications',
+        filter: `broker_id=eq.${brokerId}`,
+      },
+      async () => {
+        // Fetch updated applications when changes occur
+        const apps = await getAllApplications(brokerId);
+        callback(apps);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// Subscribe to profiles changes in real-time
+export const subscribeToProfiles = (callback: (users: User[]) => void) => {
+  const channel = supabase
+    .channel('profiles-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+      },
+      async () => {
+        // Fetch updated profiles when changes occur
+        const users = await getAllUsers();
+        callback(users);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 };
