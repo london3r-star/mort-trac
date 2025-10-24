@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Application, User, AppStage } from '../../types';
 import { getAllApplications, getBrokerInfo, deleteApplication } from '../../services/supabaseService';
-import ApplicationCard from './ApplicationCard';
-import Sidebar from './Sidebar';
-import BrokerModal from './BrokerModal';
-import ClientModal from './ClientModal';
-import StageUpdateModal from './StageUpdateModal';
-import PortalInviteModal from './PortalInviteModal';
+import ApplicationCard from '../ui/ApplicationCard';
+import PortalInviteModal from '../ui/PortalInviteModal';
 import { useNavigate } from 'react-router-dom';
 
 interface BrokerDashboardProps {
@@ -32,9 +28,6 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
   const [loading, setLoading] = useState(true);
   const [selectedStage, setSelectedStage] = useState<AppStage | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isBrokerModalOpen, setIsBrokerModalOpen] = useState(false);
-  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-  const [isStageUpdateModalOpen, setIsStageUpdateModalOpen] = useState(false);
   const [isPortalInviteModalOpen, setIsPortalInviteModalOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState('');
@@ -90,15 +83,6 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
     setFilteredApplications(filtered);
   };
 
-  const handleAddClient = () => {
-    setIsClientModalOpen(true);
-  };
-
-  const handleEditApplication = (app: Application) => {
-    setSelectedApplication(app);
-    setIsClientModalOpen(true);
-  };
-
   const handleDeleteApplication = async (appId: string) => {
     if (window.confirm('Are you sure you want to delete this application? This action cannot be undone.')) {
       try {
@@ -115,11 +99,6 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
     navigate(`/broker/application/${app.id}`, { state: { application: app, broker: user } });
   };
 
-  const handleUpdateStage = (app: Application) => {
-    setSelectedApplication(app);
-    setIsStageUpdateModalOpen(true);
-  };
-
   const handleSendPortalInvite = (app: Application) => {
     // Generate temporary password when opening the modal
     const newTempPassword = generateTemporaryPassword();
@@ -127,28 +106,6 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
     
     setSelectedApplication(app);
     setIsPortalInviteModalOpen(true);
-  };
-
-  const handleClientModalClose = () => {
-    setIsClientModalOpen(false);
-    setSelectedApplication(null);
-  };
-
-  const handleClientSaved = () => {
-    setIsClientModalOpen(false);
-    setSelectedApplication(null);
-    fetchApplications();
-  };
-
-  const handleStageUpdateModalClose = () => {
-    setIsStageUpdateModalOpen(false);
-    setSelectedApplication(null);
-  };
-
-  const handleStageUpdated = () => {
-    setIsStageUpdateModalOpen(false); 
-    setSelectedApplication(null);
-    fetchApplications();
   };
 
   const handlePortalInviteSent = () => {
@@ -183,121 +140,101 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar
-        user={user}
-        onLogout={onLogout}
-        selectedStage={selectedStage}
-        onStageSelect={setSelectedStage}
-        applications={applications}
-      />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-800 shadow-sm z-10">
-          <div className="px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-brand-primary dark:text-gray-100">
-                {selectedStage === 'all' ? 'All Applications' : selectedStage.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Manage your mortgage applications
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="Search clients or properties..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
-              />
-              <button
-                onClick={handleAddClient}
-                className="bg-brand-secondary text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-colors whitespace-nowrap"
-              >
-                + Add Client
-              </button>
-            </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Simple Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-brand-primary dark:text-gray-100">
+              Mortgage Tracker - Broker Dashboard
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Welcome, {user.name}
+            </p>
           </div>
-        </header>
+          <button
+            onClick={onLogout}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
 
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
-          {filteredApplications.length === 0 ? (
-            <div className="text-center py-12">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No applications</h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {searchTerm ? 'No applications match your search.' : 'Get started by adding a new client.'}
-              </p>
-              {!searchTerm && (
-                <div className="mt-6">
-                  <button
-                    onClick={handleAddClient}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-secondary hover:bg-opacity-90"
-                  >
-                    + Add Client
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredApplications.map((app) => (
-                <ApplicationCard
-                  key={app.id}
-                  application={app}
-                  onEdit={handleEditApplication}
-                  onDelete={handleDeleteApplication}
-                  onView={handleViewApplication}
-                  onUpdateStage={handleUpdateStage}
-                  onSendPortalInvite={handleSendPortalInvite}
-                  stageColorMap={stageColorMap}
-                />
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Simple Stage Filter */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Filter by Stage:
+          </label>
+          <select
+            value={selectedStage}
+            onChange={(e) => setSelectedStage(e.target.value as AppStage | 'all')}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+          >
+            <option value="all">All Stages</option>
+            <option value="new">New</option>
+            <option value="documents-requested">Documents Requested</option>
+            <option value="submitted-to-lender">Submitted to Lender</option>
+            <option value="approved-in-principle">Approved in Principle</option>
+            <option value="full-application">Full Application</option>
+            <option value="mortgage-offer">Mortgage Offer</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
 
-      <BrokerModal
-        isOpen={isBrokerModalOpen}
-        onClose={() => setIsBrokerModalOpen(false)}
-        onSave={(brokerData) => {
-          console.log('Broker saved:', brokerData);
-          setIsBrokerModalOpen(false);
-        }}
-        existingUsers={[]}
-        loggedInUser={user}
-      />
+        {/* Search Bar */}
+        <div className="mb-6">
+          <input
+            type="text"
+            placeholder="Search clients or properties..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
+          />
+        </div>
 
-      <ClientModal
-        isOpen={isClientModalOpen}
-        onClose={handleClientModalClose}
-        onSave={handleClientSaved}
-        brokerId={user.id}
-        applicationToEdit={selectedApplication}
-      />
+        {/* Applications Grid */}
+        {filteredApplications.length === 0 ? (
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No applications</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {searchTerm ? 'No applications match your search.' : 'No applications found.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredApplications.map((app) => (
+              <ApplicationCard
+                key={app.id}
+                application={app}
+                onEdit={() => {}}
+                onDelete={handleDeleteApplication}
+                onView={handleViewApplication}
+                onUpdateStage={() => {}}
+                onSendPortalInvite={handleSendPortalInvite}
+                stageColorMap={stageColorMap}
+              />
+            ))}
+          </div>
+        )}
+      </main>
 
-      <StageUpdateModal
-        isOpen={isStageUpdateModalOpen}
-        onClose={handleStageUpdateModalClose}
-        onUpdate={handleStageUpdated}
-        application={selectedApplication}
-        stageColorMap={stageColorMap}
-      />
-
+      {/* Portal Invite Modal */}
       <PortalInviteModal
         isOpen={isPortalInviteModalOpen}
         onClose={handlePortalInviteModalClose}
