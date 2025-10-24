@@ -70,45 +70,36 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   
   const canManageBrokers = user.isAdmin || user.isTeamManager || user.isBrokerAdmin;
 
-  const renderContent = () => {
-    if (user.role === Role.BROKER) {
-      if (viewingBroker && canManageBrokers) {
-        return (
-          <BrokerDashboard
-            user={user}
-            viewedBroker={viewingBroker}
-            applications={applications}
-            onUpdateApplications={onUpdateApplications}
-            users={users}
-            setUsers={setUsers}
-            onViewBrokerDashboard={canManageBrokers ? handleViewBrokerDashboard : undefined}
-          />
-        );
-      }
-
-      if (isManagingBrokers && canManageBrokers) {
-        return <ManageBrokersPage user={user} users={users} setUsers={setUsers} onViewBrokerDashboard={handleViewBrokerDashboard} applications={applications} />;
-      }
-
+const renderContent = () => {
+  if (user.role === Role.BROKER) {
+    if (viewingBroker && canManageBrokers) {
       return (
         <BrokerDashboard
-          user={user}
-          applications={applications}
-          onUpdateApplications={onUpdateApplications}
-          users={users}
-          setUsers={setUsers}
-          onViewBrokerDashboard={canManageBrokers ? handleViewBrokerDashboard : undefined}
+          user={viewingBroker}
+          onLogout={onLogout}
         />
       );
     }
-    
-    if (user.role === Role.CLIENT) {
-      const broker = clientApplication ? users.find(u => u.id === clientApplication.brokerId) ?? null : null;
-      return <ClientDashboard user={user} application={clientApplication} broker={broker} />;
+
+    if (isManagingBrokers && canManageBrokers) {
+      return <ManageBrokersPage user={user} users={users} setUsers={setUsers} onViewBrokerDashboard={handleViewBrokerDashboard} applications={applications} />;
     }
 
-    return null;
-  };
+    return (
+      <BrokerDashboard
+        user={user}
+        onLogout={onLogout}
+      />
+    );
+  }
+  
+  if (user.role === Role.CLIENT) {
+    const broker = clientApplication ? users.find(u => u.id === clientApplication.brokerId) ?? null : null;
+    return <ClientDashboard user={user} application={clientApplication} broker={broker} />;
+  }
+
+  return null;
+};
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
