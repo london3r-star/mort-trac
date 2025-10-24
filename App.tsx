@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import SecureLoginPage from './components/pages/SecureLoginPage';
 import DashboardPage from './components/pages/DashboardPage';
@@ -65,7 +66,7 @@ const AppContent: React.FC = () => {
     setDataLoading(true);
     try {
       // Fetch all users
-      const { data: usersData } = await getAllUsers();
+      const usersData = await getAllUsers();
       if (usersData) {
         setUsers(usersData);
       }
@@ -73,12 +74,12 @@ const AppContent: React.FC = () => {
       // Fetch applications based on user role
       if (user.role === 'CLIENT') {
         console.log('📱 Fetching client application');
-        const { data: clientApp } = await getApplicationsByClientId(user.id);
-        setClientApplication(clientApp);
+        const clientApp = await getApplicationsByClientId(user.id);
+        setClientApplication(clientApp[0] || null);
         console.log('📱 Client app:', clientApp);
       } else {
         console.log('📊 Fetching all applications');
-        const { data: appsData } = await getAllApplications();
+        const appsData = await getAllApplications(user.id);
         console.log('📊 Applications received:', appsData?.length || 0, 'apps');
         if (appsData) {
           setApplications(appsData);
@@ -100,17 +101,22 @@ const AppContent: React.FC = () => {
       fetchData();
 
       // Subscribe to real-time updates
-      const appsSubscription = subscribeToApplications(() => {
-        fetchData();
-      });
+      let appsUnsubscribe: (() => void) | undefined;
+      let profilesUnsubscribe: (() => void) | undefined;
 
-      const profilesSubscription = subscribeToProfiles(() => {
+      if (user.role !== 'CLIENT') {
+        appsUnsubscribe = subscribeToApplications(user.id, () => {
+          fetchData();
+        });
+      }
+
+      profilesUnsubscribe = subscribeToProfiles(() => {
         fetchData();
       });
 
       return () => {
-        appsSubscription.unsubscribe();
-        profilesSubscription.unsubscribe();
+        if (appsUnsubscribe) appsUnsubscribe();
+        if (profilesUnsubscribe) profilesUnsubscribe();
       };
     } else {
       setDataLoading(false);
@@ -195,9 +201,11 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 };
