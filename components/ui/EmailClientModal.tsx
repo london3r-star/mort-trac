@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Application, User } from '../../types';
-import { sendEmailToClient } from '../../services/supabaseService';
+import { supabase } from '../../services/supabaseClient';
 
 interface EmailClientModalProps {
   isOpen: boolean;
@@ -14,7 +14,6 @@ const EmailClientModal: React.FC<EmailClientModalProps> = ({ isOpen, onClose, on
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (application && broker) {
@@ -48,27 +47,27 @@ ${broker.contactNumber || ''}`;
   if (!isOpen || !application || !broker) return null;
 
   const handleSend = async () => {
-    setError('');
     setSending(true);
-
     try {
-      const result = await sendEmailToClient(
-        application.clientEmail,
-        subject,
-        body,
-        broker.name,
-        broker.email || 'hello@mortgagetracker.net'
-      );
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: application.clientEmail,
+          fromEmail: broker.email,
+          subject: subject,
+          body: body,
+        },
+      });
 
-      if (result.success) {
-        alert(`Email sent successfully to ${application.clientName}!`);
-        onSend(); // This updates the status and closes the modal
+      if (error) {
+        console.error('Error sending email:', error);
+        alert('Failed to send email. Please try again.');
       } else {
-        setError(result.error?.message || 'Failed to send email. Please try again.');
+        alert('Email sent successfully!');
+        onSend();
       }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-      console.error('Email send error:', err);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email. Please try again.');
     } finally {
       setSending(false);
     }
@@ -86,18 +85,6 @@ ${broker.contactNumber || ''}`;
           </p>
           <div className="border-t dark:border-gray-700 pt-4 space-y-4">
             <div>
-              <label htmlFor="emailTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                To
-              </label>
-              <input
-                type="email"
-                id="emailTo"
-                value={application.clientEmail}
-                disabled
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 rounded-md shadow-sm py-2 px-3 bg-gray-100 dark:bg-gray-800 sm:text-sm"
-              />
-            </div>
-            <div>
               <label htmlFor="emailSubject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Subject
               </label>
@@ -106,8 +93,7 @@ ${broker.contactNumber || ''}`;
                 id="emailSubject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                disabled={sending}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm disabled:opacity-50"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm"
               />
             </div>
             <div>
@@ -119,35 +105,19 @@ ${broker.contactNumber || ''}`;
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={12}
-                disabled={sending}
-                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm disabled:opacity-50"
+                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-brand-secondary focus:border-brand-secondary sm:text-sm"
               />
             </div>
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
           </div>
         </div>
         <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg mt-auto">
           <button
             type="button"
             onClick={handleSend}
-            disabled={sending || !subject || !body}
+            disabled={sending}
             className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-brand-secondary text-base font-medium text-white hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sending ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Sending...
-              </>
-            ) : (
-              'Send Email'
-            )}
+            {sending ? 'Sending...' : 'Send Email'}
           </button>
           <button
             type="button"
