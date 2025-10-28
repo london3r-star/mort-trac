@@ -108,9 +108,11 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
   const getPipelineCounts = () => {
     const stages = {
       'documents-requested': 0,
-      'approved-in-principle': 0,
+      'aip-in-progress': 0,
+      'aip-approved': 0,
       'full-application': 0,
       'mortgage-offer': 0,
+      'contracts-exchanged': 0,
       'completed': 0
     };
 
@@ -253,11 +255,15 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-secondary"
               >
                 <option value="all">All Statuses</option>
+                <option value="new">New</option>
                 <option value="documents-requested">Awaiting Documents</option>
-                <option value="approved-in-principle">AIP in Progress</option>
-                <option value="full-application">Full Application Submitted</option>
+                <option value="submitted-to-lender">Submitted to Lender</option>
+                <option value="aip-in-progress">AIP in Progress</option>
+                <option value="aip-approved">AIP Approved</option>
+                <option value="full-application">Full Application</option>
                 <option value="mortgage-offer">Mortgage Offered</option>
-                <option value="completed">Purchase Completed</option>
+                <option value="contracts-exchanged">Contracts Exchanged</option>
+                <option value="completed">Completed</option>
               </select>
               <button
                 onClick={handleAddNew}
@@ -274,17 +280,21 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
         {/* Pipeline Overview */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Pipeline Overview</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">Awaiting Documents</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['documents-requested']}</p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">AIP in Progress</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['approved-in-principle']}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['aip-in-progress']}</p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Full Application Submitted</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">AIP Approved</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['aip-approved']}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Full Application</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['full-application']}</p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
@@ -292,7 +302,11 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['mortgage-offer']}</p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Purchase Completed</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Contracts Exchanged</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['contracts-exchanged']}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{pipelineCounts['completed']}</p>
             </div>
           </div>
@@ -391,9 +405,11 @@ const BrokerDashboard: React.FC<BrokerDashboardProps> = ({ user, onLogout }) => 
                           <option value="new">New</option>
                           <option value="documents-requested">Awaiting Documents</option>
                           <option value="submitted-to-lender">Submitted to Lender</option>
-                          <option value="approved-in-principle">AIP Approved</option>
+                          <option value="aip-in-progress">AIP in Progress</option>
+                          <option value="aip-approved">AIP Approved</option>
                           <option value="full-application">Full Application</option>
                           <option value="mortgage-offer">Mortgage Offer</option>
+                          <option value="contracts-exchanged">Contracts Exchanged</option>
                           <option value="completed">Completed</option>
                         </select>
                       </td>
