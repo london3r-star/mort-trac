@@ -41,6 +41,13 @@ export interface Application {
   updatedAt: string;
 }
 
+export interface Solicitor {
+  firmName: string;
+  solicitorName: string;
+  contactNumber: string;
+  email: string;
+}
+
 export interface User {
   id: string;
   name: string;
