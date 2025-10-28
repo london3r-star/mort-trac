@@ -15,6 +15,9 @@ export type AppStage =
   | 'contracts-exchanged'
   | 'completed';
 
+// Backward compatibility - ApplicationStatus is now just an alias for AppStage
+export type ApplicationStatus = AppStage;
+
 export interface Application {
   id: string;
   clientId: string;
@@ -64,3 +67,17 @@ export const STAGE_DISPLAY_NAMES: Record<AppStage, string> = {
   'contracts-exchanged': 'Contracts Exchanged',
   'completed': 'Purchase Completed',
 };
+
+// Backward compatibility
+export const STATUS_DISPLAY_NAMES = STAGE_DISPLAY_NAMES;
+export const STATUS_ORDER: AppStage[] = [
+  'new',
+  'documents-requested',
+  'submitted-to-lender',
+  'aip-in-progress',
+  'aip-approved',
+  'full-application',
+  'mortgage-offer',
+  'contracts-exchanged',
+  'completed',
+];
