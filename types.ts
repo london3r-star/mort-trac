@@ -3,20 +3,24 @@ export enum Role {
   BROKER = 'BROKER',
 }
 
-// Database uses kebab-case strings for app stages
-export type AppStage = 
-  | 'new'
-  | 'documents-requested'
-  | 'submitted-to-lender'
-  | 'aip-in-progress'
-  | 'aip-approved'
-  | 'full-application'
-  | 'mortgage-offer'
-  | 'contracts-exchanged'
-  | 'completed';
+// Using enum instead of type union so Rollup can properly resolve it at build time
+export enum AppStage {
+  NEW = 'new',
+  DOCUMENTS_REQUESTED = 'documents-requested',
+  SUBMITTED_TO_LENDER = 'submitted-to-lender',
+  AIP_IN_PROGRESS = 'aip-in-progress',
+  AIP_APPROVED = 'aip-approved',
+  FULL_APPLICATION = 'full-application',
+  MORTGAGE_OFFER = 'mortgage-offer',
+  CONTRACTS_EXCHANGED = 'contracts-exchanged',
+  COMPLETED = 'completed',
+}
 
-// Backward compatibility - ApplicationStatus is now just an alias for AppStage
+// Backward compatibility
 export type ApplicationStatus = AppStage;
+
+// Helper type for the string values
+export type AppStageValue = `${AppStage}`;
 
 export interface Application {
   id: string;
@@ -28,7 +32,7 @@ export interface Application {
   clientCurrentAddress: string;
   propertyAddress: string;
   loanAmount: number;
-  appStage: AppStage; // Changed from 'status' to 'appStage' to match database
+  appStage: AppStageValue; // Use string value type
   mortgageLender: string;
   interestRate: string;
   interestRateExpiryDate: string;
@@ -63,7 +67,7 @@ export interface User {
   mustChangePassword?: boolean;
 }
 
-export const STAGE_DISPLAY_NAMES: Record<AppStage, string> = {
+export const STAGE_DISPLAY_NAMES: Record<AppStageValue, string> = {
   'new': 'New',
   'documents-requested': 'Awaiting Documents',
   'submitted-to-lender': 'Submitted to Lender',
@@ -77,7 +81,7 @@ export const STAGE_DISPLAY_NAMES: Record<AppStage, string> = {
 
 // Backward compatibility
 export const STATUS_DISPLAY_NAMES = STAGE_DISPLAY_NAMES;
-export const STATUS_ORDER: AppStage[] = [
+export const STATUS_ORDER: AppStageValue[] = [
   'new',
   'documents-requested',
   'submitted-to-lender',
